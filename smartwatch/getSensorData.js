@@ -12,6 +12,9 @@ var advertisementInterval = 20000; // 20 seconds interval for regular advertisin
 var advertisingTimeoutId; // Variable to store the timeout ID for regular advertising
 var advertisingInProgress = false; // Flag to indicate if an advertisement is currently in progress
 
+const defaultColor = "#000000"; // Default color for the screen
+var buzzerIntervalId = null; // Variable to store buzzer interval ID
+
 // Function to reset step count at midnight
 function resetDailyStepCount() {
     var now = new Date();
@@ -42,7 +45,7 @@ function showAlert(title, message) {
     alertActive = true; // Set alert active flag
 
     // Continuous buzzing until alert dismissed
-    var buzzerInterval = setInterval(function() {
+    buzzerIntervalId = setInterval(function() {
         Bangle.buzz(); // Vibrate watch
     }, 1000); // Buzz every second (adjust as needed)
 
@@ -54,8 +57,15 @@ function showAlert(title, message) {
         if (alertActive) {
             console.log('Alert dismissed by touch'); // Log alert dismissal
             g.clear(); // Clear screen on tap
-            clearInterval(buzzerInterval); // Stop buzzing
+            g.setColor(defaultColor); // Reset color to default
+            g.setFont("6x8", 2); // Reset font size
             alertActive = false; // Clear alert active flag
+
+            // Stop the buzzer
+            if (buzzerIntervalId !== null) {
+                clearInterval(buzzerIntervalId);
+                buzzerIntervalId = null; // Reset buzzer interval ID
+            }
 
             // Set cooldown flag
             alertCooldown = true;
@@ -75,7 +85,7 @@ function showAlert(title, message) {
 // Function to check heart rate and trigger alert if abnormal and non-zero
 function checkHeartRate(heartRate) {
     console.log('Checking heart rate:', heartRate); // Log heart rate check
-    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < 40 || heartRate > 120)) {
+    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < 100 || heartRate > 120)) {
         showAlert("","Abno-\nrmal\nHeart\nRate");
         // Record abnormal heart rate data
         var timestamp = new Date().toISOString();
@@ -143,6 +153,28 @@ function advertiseImmediate() {
         console.error('Error getting sensor data:', error);
         advertisingInProgress = false; // Reset flag on error
     });
+}
+
+// Function to draw the clock face
+function drawClock() {
+    if (alertActive) return; // Do not draw clock if alert is active
+
+    g.clear(); // Clear screen
+    var now = new Date();
+    var hours = now.getHours();
+    var minutes = now.getMinutes();
+    var seconds = now.getSeconds();
+
+    g.setFont("6x8", 2); // Set font size for time display
+    g.setFontAlign(0, 0); // Center text
+    g.drawString(hours.toString().padStart(2, '0') + ":" + minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0'),
+                 g.getWidth()/2, g.getHeight()/2); // Display current time
+}
+
+// Function to start the clock update loop
+function startClock() {
+    // Draw the clock every second
+    setInterval(drawClock, 1000);
 }
 
 // Start the advertising process
@@ -263,6 +295,7 @@ function init() {
     // Start advertising and heart rate monitoring
     startAdvertising();
     startHeartRateMonitoring();
+    startClock(); // Start the clock face display
 }
 
 // Run initialization
