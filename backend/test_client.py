@@ -1,6 +1,5 @@
 import requests
 
-# Define the base URL of the Flask API
 base_url = "http://127.0.0.1:5000"
 
 # Test endpoint
