@@ -35,28 +35,31 @@ def notification_handler(device_name):
     return handler
 
 async def main():
-    # Scan for devices
-    print("Scanning for BLE devices...")
-    devices = await BleakScanner.discover()
-    if not devices:
-        print("No BLE devices found.")
-        return
-
-    # Print discovered devices
-    print("Discovered devices:")
     target_device = None
     target_name = "Bangle.js 13a2"
     target_address = "D37A0476-386B-481A-9139-A24E571BE199"
     
-    for i, device in enumerate(devices):
-        device_name = device.name or "Unknown Device"
-        print(f"{i}: {device.address} ({device_name})")
-        if device.address == target_address:
-            target_device = device
+    while target_device is None:
+        # Scan for devices
+        print("Scanning for BLE devices...")
+        devices = await BleakScanner.discover()
+        if not devices:
+            print("No BLE devices found.")
+            await asyncio.sleep(1)  # Wait before trying again
+            continue
 
-    if target_device is None:
-        print("Target device not found.")
-        return
+        # Print discovered devices
+        print("Discovered devices:")
+        for i, device in enumerate(devices):
+            device_name = device.name or "Unknown Device"
+            print(f"{i}: {device.address} ({device_name})")
+            if device.address == target_address:
+                target_device = device
+                break
+
+        if target_device is None:
+            print("Target device not found, scanning again...")
+            await asyncio.sleep(1)  # Wait before trying again
 
     print(f"Connecting to {target_device.address} ({target_device.name})")
 
