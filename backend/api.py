@@ -98,5 +98,16 @@ def create_account():
 
     return jsonify({"qr_code": f"data:image/png;base64,{img_str}"}), 200
 
+# New endpoint to fetch the 1000 most recent heart rate data for a specific user
+@app.route('/api/heart-rate/<patient_id>', methods=['GET'])
+def get_heart_rate_data(patient_id):
+    data = health_metrics_records.find(
+        {"patient_id": patient_id},
+        {"heart_rate": 1, "time_of_data": 1}
+    ).sort("time_of_data", -1).limit(1000)
+    
+    heart_rate_data = [{"heart_rate": record["heart_rate"], "time_of_data": record["time_of_data"]} for record in data]
+    return jsonify(heart_rate_data), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
