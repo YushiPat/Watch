@@ -20,6 +20,8 @@ class DeviceDetailsActivity : AppCompatActivity() {
     private lateinit var disconnectButton: Button
     private lateinit var dataBoxTextView: TextView
 
+    private val dataBuffer = StringBuilder()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_device_details)
@@ -90,8 +92,16 @@ class DeviceDetailsActivity : AppCompatActivity() {
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             val data = characteristic.value
             val dataString = String(data, Charsets.UTF_8) // Convert the byte array to a UTF-8 string
-            runOnUiThread {
-                dataBoxTextView.append("$dataString\n")
+
+            synchronized(dataBuffer) {
+                dataBuffer.append(dataString)
+                if (dataString.contains("}")) {
+                    val completeData = dataBuffer.toString()
+                    runOnUiThread {
+                        dataBoxTextView.append("$completeData\n")
+                    }
+                    dataBuffer.setLength(0) // Clear the buffer
+                }
             }
         }
     }
