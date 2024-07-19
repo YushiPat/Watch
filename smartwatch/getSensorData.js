@@ -14,6 +14,10 @@ var advertisingInProgress = false; // Flag to indicate if an advertisement is cu
 
 const defaultColor = "#000000"; // Default color for the screen
 var buzzerIntervalId = null; // Variable to store buzzer interval ID
+var localStorageData = []; // Array to store data locally when not connected to Bluetooth
+
+const zeroHeartRateThreshold = 30000; // Duration (ms) for how long the heart rate can be zero before advertising again
+var heartRateZeroStart = null; // Timestamp when heart rate first became zero
 
 // Function to reset step count at midnight
 function resetDailyStepCount() {
@@ -31,6 +35,14 @@ function resetDailyStepCount() {
         // Call the function recursively to reset at the next midnight
         resetDailyStepCount();
     }, timeUntilMidnight);
+}
+
+// Function to format time as HH:MM:SS
+function formatTime(date) {
+    var hours = date.getHours().toString().padStart(2, '0');
+    var minutes = date.getMinutes().toString().padStart(2, '0');
+    var seconds = date.getSeconds().toString().padStart(2, '0');
+    return hours + ':' + minutes + ':' + seconds;
 }
 
 // Function to show alert on the screen
@@ -84,8 +96,19 @@ function showAlert(title, message) {
 
 // Function to check heart rate and trigger alert if abnormal and non-zero
 function checkHeartRate(heartRate) {
-    console.log('Checking heart rate:', heartRate); // Log heart rate check
-    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < 100 || heartRate > 120)) {
+    //console.log('Checking heart rate:', heartRate); // Log heart rate check
+    if (heartRate === 0) {
+        if (heartRateZeroStart === null) {
+            heartRateZeroStart = Date.now(); // Record start time when heart rate becomes zero
+        } else if (Date.now() - heartRateZeroStart > zeroHeartRateThreshold) {
+            console.log('Heart rate has been zero for too long. Pausing advertising.');
+            return; // Exit if heart rate has been zero for too long
+        }
+    } else {
+        heartRateZeroStart = null; // Reset the start time if heart rate is non-zero
+    }
+
+    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < 40 || heartRate > 120)) {
         showAlert("","Abno-\nrmal\nHeart\nRate");
         // Record abnormal heart rate data
         var timestamp = new Date().toISOString();
@@ -106,7 +129,7 @@ function advertiseImmediate() {
 
         // Get the current sensor data
         var sensorData = {
-            ts: new Date().toISOString().split('T')[1].split('.')[0],
+            ts: formatTime(new Date()), // Use formatTime function to format the time
             bp: Math.round(pressure.pressure),
             bt: Math.round(pressure.temperature),
             ba: Math.round(pressure.altitude),
@@ -118,7 +141,7 @@ function advertiseImmediate() {
             ad: Math.round(accelData.ad), // Difference in magnitude (if available)
             s: stepCount // Add cumulative step count data
         };
-        console.log('Immediate advertisement data:', sensorData);
+        //console.log('Immediate advertisement data:', sensorData);
 
         // Convert the sensor data to JSON string
         var manufacturerData = JSON.stringify(sensorData);
@@ -155,29 +178,64 @@ function advertiseImmediate() {
     });
 }
 
-// Function to draw the clock face
-function drawClock() {
-    if (alertActive) return; // Do not draw clock if alert is active
+// Function to store data locally in a file
+function storeDataLocally() {
+    // Fetch pressure and heart rate data asynchronously
+    Promise.all([Bangle.getPressure(), getHeartRate()]).then(function(results) {
+        var pressure = results[0];
+        var heartRate = results[1];
 
-    g.clear(); // Clear screen
-    var now = new Date();
-    var hours = now.getHours();
-    var minutes = now.getMinutes();
-    var seconds = now.getSeconds();
+        // Get the current sensor data
+        var sensorData = {
+            ts: formatTime(new Date()), // Use formatTime function to format the time
+            bp: Math.round(pressure.pressure),
+            bt: Math.round(pressure.temperature),
+            ba: Math.round(pressure.altitude),
+            hr: heartRate,
+            x: Math.round(accelData.x), // Accelerometer data (X-axis)
+            y: Math.round(accelData.y), // Accelerometer data (Y-axis)
+            z: Math.round(accelData.z), // Accelerometer data (Z-axis)
+            m: Math.round(accelData.m), // Magnitude of acceleration
+            ad: Math.round(accelData.ad), // Difference in magnitude (if available)
+            s: stepCount // Add cumulative step count data
+        };
 
-    g.setFont("6x8", 2); // Set font size for time display
-    g.setFontAlign(0, 0); // Center text
-    g.drawString(hours.toString().padStart(2, '0') + ":" + minutes.toString().padStart(2, '0') + ":" + seconds.toString().padStart(2, '0'),
-                 g.getWidth()/2, g.getHeight()/2); // Display current time
+        // Add data to local storage array
+        localStorageData.push(sensorData);
+        console.log('Data stored locally:', sensorData);
+
+        // Save data to file
+        var jsonData = JSON.stringify(localStorageData);
+        try {
+            require('Storage').write('sensor_data.json', jsonData);
+            console.log('Data successfully written to sensor_data.json');
+        } catch (e) {
+            console.error('Error writing data to file:', e);
+        }
+
+        // Optionally clear local storage data if necessary
+        // localStorageData = []; // Uncomment if you want to clear data after writing
+    }).catch(function(error) {
+        console.error('Error getting sensor data:', error);
+    });
 }
 
-// Function to start the clock update loop
+// Function to draw the clock face
+function drawClock() {
+    var now = new Date();
+    g.clear(); // Clear the screen
+    g.setFont("6x8"); // Set font size
+    g.setFontAlign(0, 0); // Center align
+    g.drawString(formatTime(now), g.getWidth()/2, g.getHeight()/2); // Display time
+}
+
+// Function to start the clock
 function startClock() {
     // Draw the clock every second
     setInterval(drawClock, 1000);
 }
 
-// Start the advertising process
+// Function to start the advertising process
 function startAdvertising() {
     Bangle.setBarometerPower(1); // Turn on barometer
     Bangle.setHRMPower(1); // Turn on heart rate monitor
@@ -188,7 +246,12 @@ function startAdvertising() {
     // Periodic advertising every 20 seconds
     function periodicAdvertising() {
         if (!alertActive) {
-            advertiseImmediate(); // Advertise immediately if no alert is active
+            checkBluetoothConnection(); // Check Bluetooth connection status before advertising
+            if (NRF.getSecurityStatus().connected) {
+                advertiseImmediate(); // Advertise immediately if connected
+            } else {
+                storeDataLocally(); // Store data locally if not connected
+            }
         }
         advertisingTimeoutId = setTimeout(periodicAdvertising, advertisementInterval);
     }
@@ -215,11 +278,12 @@ function getHeartRate() {
 function startHeartRateMonitoring() {
     Bangle.on('HRM', function(hrm) {
         var heartRate = hrm.bpm;
-        checkHeartRate(heartRate); // Check heart rate and trigger alert if needed
+        //console.log('Heart rate:', heartRate); // Log heart rate
+        checkHeartRate(heartRate); // Check heart rate for abnormalities
     });
 }
 
-// Helper function to handle accelerometer data
+// Function to handle accelerometer data
 function handleAccelData(accel) {
     // Calculate magnitude of acceleration
     const magnitude = Math.sqrt(accel.x * accel.x + accel.y * accel.y + accel.z * accel.z);
@@ -287,15 +351,71 @@ function toUTF8Array(str) {
     return new Uint8Array(utf8);
 }
 
+// Function to check if the device is connected to Bluetooth
+function checkBluetoothConnection() {
+    var connected = NRF.getSecurityStatus().connected;
+    console.log('Bluetooth connected:', connected);
+}
+
+function concatenatePrefix(chunks, prefix) {
+    return chunks.map(chunk => prefix + chunk);
+}
+
+// Function to advertise all stored data if available
+function advertiseStoredData() {
+    try {
+        var jsonData = require('Storage').read('sensor_data.json');
+        if (jsonData) {
+            var storedData = JSON.parse(jsonData);
+            if (storedData.length > 0) {
+                var chunks = chunkString(JSON.stringify(storedData), 17); // Split data into smaller chunks
+                chunks = concatenatePrefix(chunks, 's');
+
+                function advertiseChunks(chunks) {
+                    if (chunks.length === 0) {
+                        return; // Exit if no chunks left
+                    }
+
+                    var dataChunk = chunks.shift(); // Get the next chunk
+                    console.log('Advertising stored chunk:', dataChunk);
+
+                    // Set the advertisement with the chunked data
+                    NRF.setAdvertising({}, {
+                        showName: true,
+                        manufacturer: 0x0590,
+                        manufacturerData: toUTF8Array(dataChunk)
+                    });
+
+                    // Send the next chunk after 1 second
+                    setTimeout(function() {
+                        advertiseChunks(chunks);
+                    }, 1000);
+                }
+
+                // Start advertising chunks
+                advertiseChunks(chunks);
+            }
+        }
+    } catch (e) {
+        console.error('Error reading or advertising stored data:', e);
+    }
+}
+
 // Initialize the watch
 function init() {
     // Start the reset function to handle daily step count reset
     resetDailyStepCount();
 
+    // Check if stored data is available and advertise it
+    advertiseStoredData();
+
     // Start advertising and heart rate monitoring
     startAdvertising();
     startHeartRateMonitoring();
     startClock(); // Start the clock face display
+
+    // Periodically check Bluetooth connection status
+    setInterval(checkBluetoothConnection, 10000); // Check every 10 seconds
 }
 
 // Run initialization
