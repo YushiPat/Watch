@@ -77,7 +77,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
                     for (characteristic in service.characteristics) {
                         if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0) {
                             gatt.setCharacteristicNotification(characteristic, true)
-                            characteristic.descriptors.forEach { descriptor ->
+                            for (descriptor in characteristic.descriptors) {
                                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                                 gatt.writeDescriptor(descriptor)
                             }
@@ -95,12 +95,28 @@ class DeviceDetailsActivity : AppCompatActivity() {
 
             synchronized(dataBuffer) {
                 dataBuffer.append(dataString)
-                if (dataString.contains("}")) {
-                    val completeData = dataBuffer.toString()
+
+                var start = dataBuffer.indexOf("{")
+                var end = dataBuffer.indexOf("}")
+
+                while (start != -1 && end != -1 && start < end) {
+                    val completeData = dataBuffer.substring(start, end + 1)
                     runOnUiThread {
                         dataBoxTextView.append("$completeData\n")
                     }
-                    dataBuffer.setLength(0) // Clear the buffer
+                    dataBuffer.delete(start, end + 1)
+                    start = dataBuffer.indexOf("{")
+                    end = dataBuffer.indexOf("}")
+                }
+
+                // Clean up any leading text before the next JSON object starts
+                if (start == -1 && end != -1) {
+                    dataBuffer.delete(0, end + 1)
+                } else if (start != -1 && end == -1) {
+                    // Remove text before the '{'
+                    dataBuffer.delete(0, start)
+                } else {
+                    // Do nothing
                 }
             }
         }
