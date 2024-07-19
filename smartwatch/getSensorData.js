@@ -369,7 +369,7 @@ function advertiseStoredData() {
             var storedData = JSON.parse(jsonData);
             if (storedData.length > 0) {
                 var chunks = chunkString(JSON.stringify(storedData), 17); // Split data into smaller chunks
-                chunks = concatenatePrefix(chunks, 's');
+                chunks = concatenatePrefix(chunks, '*');
 
                 function advertiseChunks(chunks) {
                     if (chunks.length === 0) {
