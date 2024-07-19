@@ -11,11 +11,46 @@ app = Flask(__name__)
 CORS(app)
 
 # MongoDB setup
-client = MongoClient('mongodb+srv://kpnaranj:opCYKM8BE8TlE1Kl@animecluster.5gqnvde.mongodb.net/anime_database?retryWrites=true&w=majority')
+client = MongoClient('mongodb+srv://lmaoking0:zlIsFpEOJ7l78Y8W@cluster0.9yuhxy8.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 db = client['health_metrics']
-
+health_metrics_records = db.health_metrics_records
 user_account_records = db.user_accounts
 prediction_records = db.heart_rate
+
+prediction_records = db.predictions
+
+# test_health_metrics = {
+#     "patient_id": "P123456789",
+#     "name": "John Doe",
+#     "age": 65,
+#     "gender": "Male",
+#     "medical_history": {
+#         "chronic_conditions": ["Hypertension", "Diabetes"],
+#         "surgeries": ["Appendectomy", "Knee Replacement"],
+#         "fall_history": ["2022-03-15", "2023-01-20"],
+#         "medication_history": ["Metformin", "Lisinopril"]
+#     },
+#     "heart_rate": 72,
+#     "location_coords": {
+#         "latitude": 37.7749,
+#         "longitude": -122.4194
+#     },
+#     "accelerometer_data": {
+#         "x": 0.01,
+#         "y": -0.02,
+#         "z": 0.98
+#     },
+#     "air_pressure": 1012.3,
+#     "temperature": 22.5,
+#     "step_count": 5280,
+#     "time_of_data": "2024-07-15T14:35:00Z"
+# }
+
+# Sample: Add a particular health metrics entry into the database
+# health_metrics_records.insert_one(test_health_metrics)
+
+# Sample: Add fetch a specific health metric for a patient with the name John Doe
+# records_list = health_metrics_records.find_one({"name": "John Doe"})
 
 # Test endpoint
 @app.route('/api/test', methods=['GET'])
