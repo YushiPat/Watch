@@ -46,6 +46,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import org.json.JSONObject
 
 class BleOperationsActivity : AppCompatActivity() {
 
@@ -55,24 +56,18 @@ class BleOperationsActivity : AppCompatActivity() {
             ?: error("Missing BluetoothDevice from MainActivity!")
     }
     private val dateFormatter = SimpleDateFormat("MMM d, HH:mm:ss", Locale.US)
-//    private val characteristics by lazy {
-//        ConnectionManager.servicesOnDevice(device)?.flatMap { service ->
-//            service.characteristics ?: listOf()
-//        } ?: listOf()
-//    }
-private val characteristics by lazy {
-    ConnectionManager.servicesOnDevice(device)?.flatMap { service ->
-        log("Service discovered: ${service.uuid}")
-        service.characteristics?.also {
-            it.forEach { characteristic ->
-                log("Characteristic discovered: ${characteristic.uuid} with properties: ${characteristic.properties}")
-                // log the properties of the characteristic in ascii format
 
+    private val characteristics by lazy {
+        ConnectionManager.servicesOnDevice(device)?.flatMap { service ->
+            log("Service discovered: ${service.uuid}")
+            service.characteristics?.also {
+                it.forEach { characteristic ->
+                    log("Characteristic discovered: ${characteristic.uuid} with properties: ${characteristic.properties}")
+                }
             }
-        }
-        service.characteristics ?: listOf()
-    } ?: listOf()
-}
+            service.characteristics ?: listOf()
+        } ?: listOf()
+    }
 
     private val characteristicProperties by lazy {
         characteristics.associateWith { characteristic ->
@@ -87,19 +82,21 @@ private val characteristics by lazy {
             }.toList()
         }
     }
+
     private val characteristicAdapter: CharacteristicAdapter by lazy {
         CharacteristicAdapter(characteristics) { characteristic ->
             showCharacteristicOptions(characteristic)
         }
     }
+
     private val notifyingCharacteristics = mutableListOf<UUID>()
+    private val dataChunks = mutableMapOf<UUID, StringBuilder>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ConnectionManager.registerListener(connectionEventListener)
 
         binding = ActivityBleOperationsBinding.inflate(layoutInflater)
-
         setContentView(binding.root)
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
@@ -248,7 +245,24 @@ private val characteristics by lazy {
             }
 
             onCharacteristicChanged = { _, characteristic, value ->
-                log("Value changed on ${characteristic.uuid}: ${value.toHexString()}")
+                // Accumulate data chunks
+                val dataChunk = value.toString(Charsets.UTF_8)
+                val buffer = dataChunks.getOrPut(characteristic.uuid) { StringBuilder() }
+                buffer.append(dataChunk)
+
+                // Attempt to parse the accumulated data
+                try {
+                    val dataStr = buffer.toString()
+                    if (dataStr.startsWith("{") && dataStr.endsWith("}")) {
+                        val jsonData = JSONObject(dataStr)
+                        log("Notification from ${characteristic.uuid}: ${jsonData.toString(2)}")
+                        buffer.clear() // Reset the buffer after parsing
+                    } else {
+                        log("Accumulating data for ${characteristic.uuid}: $dataStr")
+                    }
+                } catch (e: Exception) {
+                    log("Failed to parse data chunk: ${e.message}")
+                }
             }
 
             onNotificationsEnabled = { _, characteristic ->

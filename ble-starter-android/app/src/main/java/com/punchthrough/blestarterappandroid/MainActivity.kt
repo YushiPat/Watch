@@ -17,362 +17,156 @@
 package com.punchthrough.blestarterappandroid
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
-import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.UiThread
-import androidx.appcompat.app.AppCompatActivity
+import android.util.Log
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.ListView
+import android.widget.TextView
 import androidx.core.app.ActivityCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.SimpleItemAnimator
-import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
-import com.punchthrough.blestarterappandroid.ble.ConnectionManager
-import com.punchthrough.blestarterappandroid.databinding.ActivityMainBinding
-import timber.log.Timber
-
-private const val PERMISSION_REQUEST_CODE = 1
+import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AppCompatActivity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.AdapterView
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var bluetoothAdapter: BluetoothAdapter
+    private lateinit var bluetoothLeScanner: BluetoothLeScanner
+    private lateinit var deviceListAdapter: DeviceListAdapter
+    private val deviceList: ArrayList<BluetoothDevice> = ArrayList()
 
-    /*******************************************
-     * Properties
-     *******************************************/
-
-    private lateinit var binding: ActivityMainBinding
-
-    private val bluetoothAdapter: BluetoothAdapter by lazy {
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothManager.adapter
+    companion object {
+        private const val REQUEST_ENABLE_BT = 1
+        private const val REQUEST_LOCATION_PERMISSION = 2
+        const val TARGET_DEVICE_ID = "E9:75:84:73:13:A2"
     }
-
-    private val bleScanner by lazy {
-        bluetoothAdapter.bluetoothLeScanner
-    }
-
-    private val scanSettings = ScanSettings.Builder()
-        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-        .build()
-
-    private var isScanning = false
-        set(value) {
-            field = value
-            runOnUiThread { binding.scanButton.text = if (value) "Stop Scan" else "Start Scan" }
-        }
-
-    private val scanResults = mutableListOf<ScanResult>()
-    private val scanResultAdapter: ScanResultAdapter by lazy {
-        ScanResultAdapter(scanResults) { result ->
-            if (isScanning) {
-                stopBleScan()
-            }
-            with(result.device) {
-                Timber.w("Connecting to $address")
-                ConnectionManager.connect(this, this@MainActivity)
-            }
-        }
-    }
-
-    private val bluetoothEnablingResult = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            Timber.i("Bluetooth is enabled, good to go")
-        } else {
-            Timber.e("User dismissed or denied Bluetooth prompt")
-            promptEnableBluetooth()
-        }
-    }
-
-    /*******************************************
-     * Activity function overrides
-     *******************************************/
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())
+        setContentView(R.layout.activity_main)
+
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+        bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
+
+        val listView: ListView = findViewById(R.id.device_list)
+        deviceListAdapter = DeviceListAdapter(this, deviceList)
+        listView.adapter = deviceListAdapter
+
+        val refreshButton: Button = findViewById(R.id.refresh_button)
+        refreshButton.setOnClickListener {
+            refreshDeviceList()
         }
-        binding.scanButton.setOnClickListener { if (isScanning) stopBleScan() else startBleScan() }
-        setupRecyclerView()
+
+        listView.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ ->
+            val selectedDevice = deviceList[position]
+            if (selectedDevice.address == TARGET_DEVICE_ID) {
+                val intent = Intent(this, DeviceDetailsActivity::class.java)
+                startActivity(intent)
+            }
+        }
+
+        checkPermissions()
     }
 
-    override fun onResume() {
-        super.onResume()
-        ConnectionManager.registerListener(connectionEventListener)
-        if (!bluetoothAdapter.isEnabled) {
-            promptEnableBluetooth()
+    private fun checkPermissions() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQUEST_LOCATION_PERMISSION)
+        } else {
+            startScanning()
+        }
+    }
+
+    private fun startScanning() {
+        deviceList.clear()
+        deviceListAdapter.notifyDataSetChanged()
+        bluetoothLeScanner.startScan(leScanCallback)
+    }
+
+    private fun stopScanning() {
+        bluetoothLeScanner.stopScan(leScanCallback)
+    }
+
+    private fun refreshDeviceList() {
+        stopScanning()
+        startScanning()
+    }
+
+    private val leScanCallback: ScanCallback = object : ScanCallback() {
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            val device: BluetoothDevice = result.device
+
+            if (device.address == TARGET_DEVICE_ID) {
+                stopScanning()
+                Log.i("MainActivity", "Target device found: ${device.name ?: "Unknown Device"} (${device.address})")
+            }
+
+            if (!deviceList.contains(device)) {
+                deviceList.add(device)
+                deviceListAdapter.notifyDataSetChanged()
+            }
+        }
+
+        override fun onBatchScanResults(results: List<ScanResult>) {
+            for (result in results) {
+                onScanResult(0, result)
+            }
+        }
+
+        override fun onScanFailed(errorCode: Int) {
+            Log.e("MainActivity", "BLE Scan Failed with code $errorCode")
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            REQUEST_LOCATION_PERMISSION -> {
+                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    startScanning()
+                } else {
+                    // Permission denied, show a message to the user
+                }
+                return
+            }
         }
     }
 
     override fun onPause() {
         super.onPause()
-        if (isScanning) {
-            stopBleScan()
-        }
-        ConnectionManager.unregisterListener(connectionEventListener)
+        stopScanning()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != PERMISSION_REQUEST_CODE) {
-            return
-        }
-        if (permissions.isEmpty() && grantResults.isEmpty()) {
-            Timber.e("Empty permissions and grantResults array in onRequestPermissionsResult")
-            Timber.w("This is likely a cancellation due to user interaction interrupted")
-            return
-        }
-
-        // Log permission request outcomes
-        val resultsDescriptions = grantResults.map {
-            when (it) {
-                PackageManager.PERMISSION_DENIED -> "Denied"
-                PackageManager.PERMISSION_GRANTED -> "Granted"
-                else -> "Unknown"
-            }
-        }
-        Timber.w("Permissions: ${permissions.toList()}, grant results: $resultsDescriptions")
-
-        // A denied permission is permanently denied if shouldShowRequestPermissionRationale is false
-        val containsPermanentDenial = permissions.zip(grantResults.toTypedArray()).any {
-            it.second == PackageManager.PERMISSION_DENIED &&
-                !ActivityCompat.shouldShowRequestPermissionRationale(this, it.first)
-        }
-        val containsDenial = grantResults.any { it == PackageManager.PERMISSION_DENIED }
-        val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-        when {
-            containsPermanentDenial -> {
-                Timber.e("User permanently denied granting of permissions")
-                Timber.e("Requesting for manual granting of permissions from App Settings")
-                promptManualPermissionGranting()
-            }
-            containsDenial -> {
-                // It's still possible to re-request permissions
-                requestRelevantBluetoothPermissions(PERMISSION_REQUEST_CODE)
-            }
-            allGranted && hasRequiredBluetoothPermissions() -> {
-                startBleScan()
-            }
-            else -> {
-                Timber.e("Unexpected scenario encountered when handling permissions")
-                recreate()
-            }
-        }
+    override fun onResume() {
+        super.onResume()
+        startScanning()
     }
 
-    /*******************************************
-     * Private functions
-     *******************************************/
+    private inner class DeviceListAdapter(context: Activity, private val devices: ArrayList<BluetoothDevice>) : ArrayAdapter<BluetoothDevice>(context, 0, devices) {
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val device = devices[position]
+            val view = convertView ?: layoutInflater.inflate(R.layout.device_list_item, parent, false)
+            val deviceNameTextView: TextView = view.findViewById(R.id.device_name)
+            val deviceAddressTextView: TextView = view.findViewById(R.id.device_address)
 
-    /**
-     * Prompts the user to enable Bluetooth via a system dialog.
-     *
-     * For Android 12+, [Manifest.permission.BLUETOOTH_CONNECT] is required to use
-     * the [BluetoothAdapter.ACTION_REQUEST_ENABLE] intent.
-     */
-    private fun promptEnableBluetooth() {
-        if (hasRequiredBluetoothPermissions() && !bluetoothAdapter.isEnabled) {
-            Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).apply {
-                bluetoothEnablingResult.launch(this)
+            deviceNameTextView.text = device.name ?: "Unknown Device"
+            deviceAddressTextView.text = device.address
+
+            if (device.address == TARGET_DEVICE_ID) {
+                view.setBackgroundColor(ContextCompat.getColor(context, R.color.yellow_highlight))
+            } else {
+                view.setBackgroundColor(ContextCompat.getColor(context, android.R.color.transparent))
             }
-        }
-    }
 
-    @SuppressLint("MissingPermission, NotifyDataSetChanged") // Check performed inside extension fun
-    private fun startBleScan() {
-        if (!hasRequiredBluetoothPermissions()) {
-            requestRelevantBluetoothPermissions(PERMISSION_REQUEST_CODE)
-        } else {
-            scanResults.clear()
-            scanResultAdapter.notifyDataSetChanged()
-            bleScanner.startScan(null, scanSettings, scanCallback)
-            isScanning = true
-        }
-    }
-
-    @SuppressLint("MissingPermission") // Check performed inside extension fun
-    private fun stopBleScan() {
-        if (hasRequiredBluetoothPermissions()) {
-            bleScanner.stopScan(scanCallback)
-            isScanning = false
-        }
-    }
-
-    @UiThread
-    private fun setupRecyclerView() {
-        binding.scanResultsRecyclerView.apply {
-            adapter = scanResultAdapter
-            layoutManager = LinearLayoutManager(
-                this@MainActivity,
-                RecyclerView.VERTICAL,
-                false
-            )
-            isNestedScrollingEnabled = false
-            itemAnimator.let {
-                if (it is SimpleItemAnimator) {
-                    it.supportsChangeAnimations = false
-                }
-            }
-        }
-    }
-
-    @UiThread
-    private fun promptManualPermissionGranting() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.please_grant_relevant_permissions)
-            .setMessage(R.string.app_settings_rationale)
-            .setPositiveButton(R.string.app_settings) { _, _ ->
-                try {
-                    startActivity(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.parse("package:$packageName")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                    )
-                } catch (e: ActivityNotFoundException) {
-                    if (!isFinishing) {
-                        Toast.makeText(
-                            this,
-                            R.string.cannot_launch_app_settings,
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-                finish()
-            }
-            .setNegativeButton(R.string.quit) { _, _ -> finishAndRemoveTask() }
-            .setCancelable(false)
-            .show()
-    }
-
-    /*******************************************
-     * Callback bodies
-     *******************************************/
-
-    // If we're getting a scan result, we already have the relevant permission(s)
-    @SuppressLint("MissingPermission")
-    private val scanCallback = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, result: ScanResult) {
-            with(result.device) {
-                val rssi = result.rssi // RSSI value
-                val manufacturerData =
-                    result.scanRecord?.getManufacturerSpecificData(0x0590) // Example manufacturer ID: 0xFFFF
-                val manufacturerDataString = manufacturerData?.let { bytes ->
-                    String(bytes, Charsets.UTF_8)
-                } ?: "No Manufacturer Data"
-                val serviceUuids =
-                    result.scanRecord?.serviceUuids?.joinToString { it.uuid.toString() }
-                        ?: "No Service UUIDs"
-                Timber.i("Device found: Name: ${name ?: "Unnamed"}, Address: $address, RSSI: $rssi, Manufacturer Data: $manufacturerDataString, Service UUIDs: $serviceUuids")
-                // TODO: Manufacturer Data is the sensor data. Need to add more sensor data. But you can experiment and export this data to the database.
-                // TODO: open logcat panel for logs
-                val indexQuery =
-                    scanResults.indexOfFirst { it.device.address == result.device.address }
-                if (indexQuery != -1) { // A scan result already exists with the same address
-                    scanResults[indexQuery] = result
-                    scanResultAdapter.notifyItemChanged(indexQuery)
-                } else {
-                    with(result.device) {
-                        Timber.i("Found BLE device! Name: ${name ?: "Unnamed"}, address: $address")
-                        // if Name = Bangle.js 13a2
-                        if (name == "Bangle.js 13a2") {
-                            Timber.i("Found Bangle.js 13a2!!")
-                            Timber.i("Found Bangle.js 13a2!!")
-                            Timber.i("Found Bangle.js 13a2!!")
-                        }
-                    }
-                    scanResults.add(result)
-                    scanResultAdapter.notifyItemInserted(scanResults.size - 1)
-                }
-            }
-        }
-
-        override fun onScanFailed(errorCode: Int) {
-            Timber.e("onScanFailed: code $errorCode")
-        }
-    }
-
-//    @SuppressLint("MissingPermission")
-//    private val scanCallback = object : ScanCallback() {
-//        override fun onScanResult(callbackType: Int, result: ScanResult) {
-//            with(result.device) {
-//                val rssi = result.rssi // RSSI value
-//                val manufacturerData = result.scanRecord?.getManufacturerSpecificData(0x0590) // Example manufacturer ID: 0xFFFF
-//                val manufacturerDataString = manufacturerData?.let { bytes ->
-//                    bytes.joinToString(separator = " ") { byte -> "%02x".format(byte) }
-//                } ?: "No Manufacturer Data"
-//                val serviceUuids = result.scanRecord?.serviceUuids?.joinToString { it.uuid.toString() } ?: "No Service UUIDs"
-//
-//                Timber.i("Device found: Name: ${name ?: "Unnamed"}, Address: $address, RSSI: $rssi, Manufacturer Data: $manufacturerDataString, Service UUIDs: $serviceUuids")
-//
-//                // Check if the device name is Bangle.js 13a2 to ascii: 0x42 61 6E 67 6C 65 2E 6A 73 20 31 33 61 32
-//                if (name == "Bangle.js") {
-//                    val indexQuery = scanResults.indexOfFirst { it.device.address == address }
-//                    if (indexQuery != -1) { // A scan result already exists with the same address
-//                        scanResults[indexQuery] = result
-//                        scanResultAdapter.notifyItemChanged(indexQuery)
-//                    } else {
-//                        Timber.i("Found Bangle.js 13a2!! Name: ${name}, address: $address")
-//                        scanResults.add(result)
-//                        scanResultAdapter.notifyItemInserted(scanResults.size - 1)
-//                    }
-//                }
-//            }
-//        }
-//
-//        override fun onScanFailed(errorCode: Int) {
-//            Timber.e("onScanFailed: code $errorCode")
-//        }
-//    }
-
-
-    private val connectionEventListener by lazy {
-        ConnectionEventListener().apply {
-            onConnectionSetupComplete = { gatt ->
-                Intent(this@MainActivity, BleOperationsActivity::class.java).also {
-                    it.putExtra(BluetoothDevice.EXTRA_DEVICE, gatt.device)
-                    startActivity(it)
-                }
-            }
-            @SuppressLint("MissingPermission")
-            onDisconnect = {
-                val deviceName = if (hasRequiredBluetoothPermissions()) {
-                    it.name
-                } else {
-                    "device"
-                }
-                runOnUiThread {
-                    AlertDialog.Builder(this@MainActivity)
-                        .setTitle(R.string.disconnected)
-                        .setMessage(
-                            getString(R.string.disconnected_or_unable_to_connect_to_device, deviceName)
-                        )
-                        .setPositiveButton(R.string.ok, null)
-                        .show()
-                }
-            }
+            return view
         }
     }
 }
