@@ -1,19 +1,3 @@
-/*
- * Copyright 2024 Punch Through Design LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.punchthrough.blestarterappandroid
 
 import android.Manifest
@@ -78,21 +62,53 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQUEST_LOCATION_PERMISSION)
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+        if (permissionsToRequest.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), REQUEST_LOCATION_PERMISSION)
         } else {
             startScanning()
         }
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            REQUEST_LOCATION_PERMISSION -> {
+                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                    startScanning()
+                } else {
+                    // Permission denied, show a message to the user
+                    Log.e("MainActivity", "Permission denied")
+                }
+            }
+        }
+    }
+
     private fun startScanning() {
-        deviceList.clear()
-        deviceListAdapter.notifyDataSetChanged()
-        bluetoothLeScanner.startScan(leScanCallback)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+            deviceList.clear()
+            deviceListAdapter.notifyDataSetChanged()
+            bluetoothLeScanner.startScan(leScanCallback)
+        } else {
+            Log.e("MainActivity", "Bluetooth scan permission not granted")
+        }
     }
 
     private fun stopScanning() {
-        bluetoothLeScanner.stopScan(leScanCallback)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+            bluetoothLeScanner.stopScan(leScanCallback)
+        } else {
+            Log.e("MainActivity", "Bluetooth scan permission not granted")
+        }
     }
 
     private fun refreshDeviceList() {
@@ -123,20 +139,6 @@ class MainActivity : AppCompatActivity() {
 
         override fun onScanFailed(errorCode: Int) {
             Log.e("MainActivity", "BLE Scan Failed with code $errorCode")
-        }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_LOCATION_PERMISSION -> {
-                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    startScanning()
-                } else {
-                    // Permission denied, show a message to the user
-                }
-                return
-            }
         }
     }
 

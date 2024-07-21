@@ -1,6 +1,5 @@
 package com.punchthrough.blestarterappandroid
 
-
 import android.bluetooth.*
 import android.os.Bundle
 import android.util.Log
@@ -94,7 +93,9 @@ class DeviceDetailsActivity : AppCompatActivity() {
             val dataString = String(data, Charsets.UTF_8) // Convert the byte array to a UTF-8 string
 
             synchronized(dataBuffer) {
-                dataBuffer.append(dataString)
+                // Remove the exact string "> [JAdvertising chunk: "
+                val cleanedDataString = dataString.replace("> [JAdvertising chunk: ", "").trim()
+                dataBuffer.append(cleanedDataString)
 
                 var start = dataBuffer.indexOf("{")
                 var end = dataBuffer.indexOf("}")
@@ -116,7 +117,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
                     // Remove text before the '{'
                     dataBuffer.delete(0, start)
                 } else {
-                    // Do nothing
+
                 }
             }
         }
