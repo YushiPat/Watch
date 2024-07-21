@@ -20,6 +20,8 @@ class DeviceDetailsActivity : AppCompatActivity() {
     private lateinit var dataBoxTextView: TextView
 
     private val dataBuffer = StringBuilder()
+    private val charBuffer = StringBuilder()
+    private val charNoSpaceBuffer = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,20 +93,58 @@ class DeviceDetailsActivity : AppCompatActivity() {
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             val data = characteristic.value
             val dataString = String(data, Charsets.UTF_8) // Convert the byte array to a UTF-8 string
-            Log.w("dataString", "data: $dataString");
+            charBuffer.clear() // Clear the buffer for the next batch of data
+            charNoSpaceBuffer.clear()
 
             synchronized(dataBuffer) {
-                // Remove the exact string "> [JAdvertising chunk: "
-                val cleanedDataString = dataString.replace("> [JAdvertising chunk: ", "").trim()
-                dataBuffer.append(cleanedDataString)
+                dataBuffer.append(dataString)
 
                 var start = dataBuffer.indexOf("{")
                 var end = dataBuffer.indexOf("}")
 
                 while (start != -1 && end != -1 && start < end) {
-                    val completeData = dataBuffer.substring(start, end + 1)
+                    var completeData = dataBuffer.substring(start, end + 1)
+
+                    // Tokenize each element into individual characters and add to charBuffer
+                    completeData.forEach { char ->
+                        if (!char.isWhitespace()) {
+                            charBuffer.append(char)
+                        }
+                    }
+
+
+                    var finalString = charBuffer.toString()
+                    finalString = finalString.replace("[JAdvertisingchunk:", "")
+                    finalString = finalString.replace(">", "")
+                    finalString = finalString.replace(" ", "")
+//                    Log.d("DeviceDetailsActivity", "Final String: $finalString")
+
+                    finalString.forEach { char ->
+                        if (char.isLetterOrDigit() || char in "{}\":,") {
+                            charNoSpaceBuffer.append(char)
+                        }
+                    }
+                    var actualFinalString = charNoSpaceBuffer.toString()
+                    Log.d("DeviceDetailsActivity", "Actual Final String: $actualFinalString")
+
+                    val replacedString = actualFinalString
+                        .replace("\"ts\"", "\"Timestamp\"")
+                        .replace("\"bp\"", "\"Air Pressure\"")
+                        .replace("\"bt\"", "\"Temperature\"")
+                        .replace("\"ba\"", "\"Altitude\"")
+                        .replace("\"hr\"", "\"HeartRate\"")
+                        .replace("\"x\"", "\"AccelX\"")
+                        .replace("\"y\"", "\"AccelY\"")
+                        .replace("\"z\"", "\"AccelZ\"")
+                        .replace("\"m\"", "\"Magnitude\"")
+                        .replace("\"ad\"", "\"AccelDifference\"")
+                        .replace("\"s\"", "\"StepCount\"")
+
+                    Log.d("DeviceDetailsActivity", "Actual Final String: $replacedString")
+
+                    // Update the UI with the cleaned data
                     runOnUiThread {
-                        dataBoxTextView.append("$completeData\n")
+                        dataBoxTextView.append("$replacedString\n")
                     }
                     dataBuffer.delete(start, end + 1)
                     start = dataBuffer.indexOf("{")
@@ -118,7 +158,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
                     // Remove text before the '{'
                     dataBuffer.delete(0, start)
                 } else {
-
+                    // Do nothing if both start and end are -1
                 }
             }
         }
