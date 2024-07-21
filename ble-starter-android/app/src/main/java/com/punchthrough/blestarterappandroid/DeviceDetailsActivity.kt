@@ -91,6 +91,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             val data = characteristic.value
             val dataString = String(data, Charsets.UTF_8) // Convert the byte array to a UTF-8 string
+            Log.w("dataString", "data: $dataString");
 
             synchronized(dataBuffer) {
                 // Remove the exact string "> [JAdvertising chunk: "

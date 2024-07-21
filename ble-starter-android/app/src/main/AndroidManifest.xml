@@ -50,6 +50,9 @@
             android:exported="false"
             android:screenOrientation="portrait">
         </activity>
+        <activity android:name=".DeviceDetailsActivity"
+            android:exported="false">
+        </activity>
 <!--        <activity-->
 <!--            android:name=".FormActivity"-->
 <!--            android:exported="false"-->
