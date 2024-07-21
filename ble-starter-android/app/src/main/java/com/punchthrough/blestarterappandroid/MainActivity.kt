@@ -44,6 +44,7 @@ import androidx.recyclerview.widget.SimpleItemAnimator
 import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.databinding.ActivityMainBinding
+import com.punchthrough.blestarterappandroid.databinding.InputFormBinding
 import timber.log.Timber
 
 private const val PERMISSION_REQUEST_CODE = 1
@@ -55,6 +56,7 @@ class MainActivity : AppCompatActivity() {
      *******************************************/
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var inputBinding: InputFormBinding
 
     private val bluetoothAdapter: BluetoothAdapter by lazy {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -106,12 +108,29 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
+        inputBinding = InputFormBinding.inflate(layoutInflater)
         setContentView(binding.root)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
-        binding.scanButton.setOnClickListener { if (isScanning) stopBleScan() else startBleScan() }
+
         setupRecyclerView()
+
+        inputBinding.btnSubmit.setOnClickListener {
+            val name = inputBinding.etName.text.toString().trim()
+            val email = inputBinding.etEmail.text.toString().trim()
+            val phone = inputBinding.etPhone.text.toString().trim()
+
+            // Check if any field is empty
+            if (name.isEmpty() || email.isEmpty() || phone.isEmpty()) {
+                Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+            } else {
+                // Handle the submission (e.g., save data, send to another activity or fragment)
+                Toast.makeText(this, "Submission successful", Toast.LENGTH_SHORT).show()
+                // Example: Log the input or proceed with your business logic
+                Timber.d("Name: $name, Email: $email, Phone: $phone")
+            }
+        }
     }
 
     override fun onResume() {
@@ -158,7 +177,7 @@ class MainActivity : AppCompatActivity() {
         // A denied permission is permanently denied if shouldShowRequestPermissionRationale is false
         val containsPermanentDenial = permissions.zip(grantResults.toTypedArray()).any {
             it.second == PackageManager.PERMISSION_DENIED &&
-                !ActivityCompat.shouldShowRequestPermissionRationale(this, it.first)
+                    !ActivityCompat.shouldShowRequestPermissionRationale(this, it.first)
         }
         val containsDenial = grantResults.any { it == PackageManager.PERMISSION_DENIED }
         val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
@@ -376,3 +395,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
