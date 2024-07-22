@@ -123,11 +123,11 @@ class MainActivity : AppCompatActivity() {
             if (device.address == TARGET_DEVICE_ID) {
                 stopScanning()
                 Log.i("MainActivity", "Target device found: ${device.name ?: "Unknown Device"} (${device.address})")
-            }
-
-            if (!deviceList.contains(device)) {
-                deviceList.add(device)
-                deviceListAdapter.notifyDataSetChanged()
+                if (!deviceList.contains(device)) {
+                    deviceList.clear()
+                    deviceList.add(device)
+                    deviceListAdapter.notifyDataSetChanged()
+                }
             }
         }
 

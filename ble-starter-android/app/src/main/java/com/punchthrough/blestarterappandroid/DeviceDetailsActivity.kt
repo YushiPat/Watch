@@ -2,6 +2,9 @@ package com.punchthrough.blestarterappandroid
 
 import android.bluetooth.*
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.style.StyleSpan
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
@@ -14,7 +17,11 @@ import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.IOException
 
 class DeviceDetailsActivity : AppCompatActivity() {
 
@@ -128,12 +135,10 @@ class DeviceDetailsActivity : AppCompatActivity() {
                         }
                     }
 
-
                     var finalString = charBuffer.toString()
                     finalString = finalString.replace("[JAdvertisingchunk:", "")
                     finalString = finalString.replace(">", "")
                     finalString = finalString.replace(" ", "")
-//                    Log.d("DeviceDetailsActivity", "Final String: $finalString")
 
                     finalString.forEach { char ->
                         if (char.isLetterOrDigit() || char in "{}\":,") {
@@ -169,6 +174,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
                             } else {
                                 Log.w("DeviceDetailsActivity", "No HeartRate value found in JSON")
                             }
+                            sendDataToBackend(jsonObject) // Send data to backend
                         }
                     } catch (e: Exception) {
                         Log.e("DeviceDetailsActivity", "Failed to parse JSON: ${e.message}")
@@ -190,6 +196,36 @@ class DeviceDetailsActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun sendDataToBackend(data: JSONObject) {
+        val client = OkHttpClient()
+
+        val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = data.toString().toRequestBody(jsonMediaType)
+
+        val request = Request.Builder()
+            .url("https://ultimate-dogfish-distinct.ngrok-free.app/api/sensor-data")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("DeviceDetailsActivity", "Failed to send data to backend", e)
+                e.printStackTrace() // Print the full stack trace
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful) {
+                    Log.i("DeviceDetailsActivity", "Data sent to backend successfully")
+                } else {
+                    Log.e("DeviceDetailsActivity", "Failed to send data to backend: ${response.message}")
+                    response.body?.string()?.let { responseBody ->
+                        Log.e("DeviceDetailsActivity", "Response body: $responseBody")
+                    }
+                }
+            }
+        })
     }
 
     private fun setupLineChart() {
@@ -268,28 +304,38 @@ class DeviceDetailsActivity : AppCompatActivity() {
 
     private fun updateConnectionStatus(isConnected: Boolean) {
         if (isConnected) {
-            connectionStatusTextView.text = "Connected"
+            connectionStatusTextView.text = "Bangle.js 2 SmartWatch Connected"
             connectionStatusTextView.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
         } else {
-            connectionStatusTextView.text = "Disconnected"
+            connectionStatusTextView.text = "Bangle.js 2 SmartWatch Disconnected"
             connectionStatusTextView.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
         }
     }
 
-    private fun formatRecentData(jsonObject: JSONObject): String {
-        val sb = StringBuilder()
-        sb.append("Most Recent Health Data:\n")
-        sb.append("- Timestamp: ${jsonObject.optString("Timestamp")}\n")
-        sb.append("- Air Pressure: ${jsonObject.optString("Air Pressure")}\n")
-        sb.append("- Temperature: ${jsonObject.optString("Temperature")}\n")
-        sb.append("- Altitude: ${jsonObject.optString("Altitude")}\n")
-        sb.append("- Heart Rate: ${jsonObject.optString("HeartRate")}\n")
-        sb.append("- AccelX: ${jsonObject.optString("AccelX")}\n")
-        sb.append("- AccelY: ${jsonObject.optString("AccelY")}\n")
-        sb.append("- AccelZ: ${jsonObject.optString("AccelZ")}\n")
-        sb.append("- Magnitude: ${jsonObject.optString("Magnitude")}\n")
-        sb.append("- Accel Difference: ${jsonObject.optString("AccelDifference")}\n")
-        sb.append("- Step Count: ${jsonObject.optString("StepCount")}\n")
-        return sb.toString()
+    private fun formatRecentData(jsonObject: JSONObject): SpannableStringBuilder {
+        val sb = SpannableStringBuilder()
+
+        fun addBoldLabel(label: String, value: String) {
+            val start = sb.length
+            sb.append(label)
+            sb.setSpan(StyleSpan(android.graphics.Typeface.BOLD), start, sb.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            sb.append(value)
+            sb.append("\n")
+        }
+
+        addBoldLabel("Most Recent Health Data:\n", "")
+        addBoldLabel("Timestamp: ", jsonObject.optString("Timestamp"))
+        addBoldLabel("Air Pressure: ", jsonObject.optString("Air Pressure"))
+        addBoldLabel("Temperature: ", jsonObject.optString("Temperature"))
+        addBoldLabel("Altitude: ", jsonObject.optString("Altitude"))
+        addBoldLabel("Heart Rate: ", jsonObject.optString("HeartRate"))
+        addBoldLabel("AccelX: ", jsonObject.optString("AccelX"))
+        addBoldLabel("AccelY: ", jsonObject.optString("AccelY"))
+        addBoldLabel("AccelZ: ", jsonObject.optString("AccelZ"))
+        addBoldLabel("Magnitude: ", jsonObject.optString("Magnitude"))
+        addBoldLabel("Accel Difference: ", jsonObject.optString("AccelDifference"))
+        addBoldLabel("Step Count: ", jsonObject.optString("StepCount"))
+
+        return sb
     }
 }
