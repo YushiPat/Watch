@@ -7,6 +7,14 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.components.Legend
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.components.YAxis
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
+import org.json.JSONObject
 
 class DeviceDetailsActivity : AppCompatActivity() {
 
@@ -17,11 +25,16 @@ class DeviceDetailsActivity : AppCompatActivity() {
     private lateinit var connectionStatusTextView: TextView
     private lateinit var connectButton: Button
     private lateinit var disconnectButton: Button
-    private lateinit var dataBoxTextView: TextView
+    private lateinit var recentDataTextView: TextView
+    private lateinit var lineChart: LineChart
 
     private val dataBuffer = StringBuilder()
     private val charBuffer = StringBuilder()
     private val charNoSpaceBuffer = StringBuilder()
+
+    // Historical data storage
+    private val recentDataPoints = mutableListOf<Entry>()
+    private var currentIndex = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,7 +45,8 @@ class DeviceDetailsActivity : AppCompatActivity() {
         connectionStatusTextView = findViewById(R.id.connection_status)
         connectButton = findViewById(R.id.connect_button)
         disconnectButton = findViewById(R.id.disconnect_button)
-        dataBoxTextView = findViewById(R.id.data_box)
+        recentDataTextView = findViewById(R.id.recent_data_value)
+        lineChart = findViewById(R.id.line_chart)
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         device = bluetoothAdapter.getRemoteDevice(MainActivity.TARGET_DEVICE_ID)
@@ -40,6 +54,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
         connectButton.setOnClickListener { connectToDevice() }
         disconnectButton.setOnClickListener { disconnectFromDevice() }
 
+        setupLineChart()
         updateConnectionStatus(false)
     }
 
@@ -61,14 +76,15 @@ class DeviceDetailsActivity : AppCompatActivity() {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 runOnUiThread {
                     updateConnectionStatus(true)
-                    dataBoxTextView.text = "" // Clear data box when connected
                 }
                 gatt.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 runOnUiThread {
                     updateConnectionStatus(false)
-                    dataBoxTextView.text = "" // Clear data box when disconnected
+                    // Do not clear recent data when disconnected
                 }
+            } else {
+
             }
         }
 
@@ -142,10 +158,22 @@ class DeviceDetailsActivity : AppCompatActivity() {
 
                     Log.d("DeviceDetailsActivity", "Actual Final String: $replacedString")
 
-                    // Update the UI with the cleaned data
-                    runOnUiThread {
-                        dataBoxTextView.append("$replacedString\n")
+                    try {
+                        val jsonObject = JSONObject(replacedString)
+
+                        // Update the UI with the latest data
+                        runOnUiThread {
+                            recentDataTextView.text = formatRecentData(jsonObject)
+                            if (jsonObject.has("HeartRate")) {
+                                updateLineChart(jsonObject.getInt("HeartRate").toFloat()) // For example, tracking heart rate
+                            } else {
+                                Log.w("DeviceDetailsActivity", "No HeartRate value found in JSON")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("DeviceDetailsActivity", "Failed to parse JSON: ${e.message}")
                     }
+
                     dataBuffer.delete(start, end + 1)
                     start = dataBuffer.indexOf("{")
                     end = dataBuffer.indexOf("}")
@@ -158,10 +186,84 @@ class DeviceDetailsActivity : AppCompatActivity() {
                     // Remove text before the '{'
                     dataBuffer.delete(0, start)
                 } else {
-                    // Do nothing if both start and end are -1
+
                 }
             }
         }
+    }
+
+    private fun setupLineChart() {
+        lineChart.description.isEnabled = false
+        lineChart.setTouchEnabled(true)
+        lineChart.isDragEnabled = true
+        lineChart.setScaleEnabled(true)
+        lineChart.setDrawGridBackground(false)
+        lineChart.setPinchZoom(true)
+        lineChart.setBackgroundColor(ContextCompat.getColor(this, android.R.color.white))
+
+        val data = LineData()
+        data.setValueTextColor(ContextCompat.getColor(this, android.R.color.black))
+        lineChart.data = data
+
+        val xl = lineChart.xAxis
+        xl.textColor = ContextCompat.getColor(this, android.R.color.black)
+        xl.setDrawGridLines(false)
+        xl.setAvoidFirstLastClipping(true)
+        xl.isEnabled = true
+
+        val leftAxis = lineChart.axisLeft
+        leftAxis.textColor = ContextCompat.getColor(this, android.R.color.black)
+        leftAxis.setDrawGridLines(true)
+
+        val rightAxis = lineChart.axisRight
+        rightAxis.isEnabled = false
+
+        val l = lineChart.legend
+        l.form = Legend.LegendForm.LINE
+        l.textColor = ContextCompat.getColor(this, android.R.color.black)
+    }
+
+    private fun updateLineChart(newDataPoint: Float) {
+        val data = lineChart.data ?: return
+
+        var set = data.getDataSetByIndex(0)
+        if (set == null) {
+            set = createSet()
+            data.addDataSet(set)
+        }
+
+        // Maintain the past 10 data points
+        if (recentDataPoints.size > 10) {
+            recentDataPoints.removeAt(0)
+        }
+        recentDataPoints.add(Entry(currentIndex.toFloat(), newDataPoint))
+        currentIndex++
+
+        set.clear()
+        for (entry in recentDataPoints) {
+            set.addEntry(entry)
+        }
+
+        data.notifyDataChanged()
+        lineChart.notifyDataSetChanged()
+        lineChart.setVisibleXRangeMaximum(10f)
+        lineChart.moveViewToX(data.entryCount.toFloat())
+    }
+
+    private fun createSet(): LineDataSet {
+        val set = LineDataSet(null, "Heart Rate") // For example, tracking heart rate
+        set.axisDependency = YAxis.AxisDependency.LEFT
+        set.color = ContextCompat.getColor(this, android.R.color.holo_red_dark)
+        set.setCircleColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+        set.lineWidth = 2f
+        set.circleRadius = 4f
+        set.fillAlpha = 65
+        set.fillColor = ContextCompat.getColor(this, android.R.color.holo_red_dark)
+        set.highLightColor = ContextCompat.getColor(this, android.R.color.holo_red_dark)
+        set.valueTextColor = ContextCompat.getColor(this, android.R.color.black)
+        set.valueTextSize = 9f
+        set.setDrawValues(false)
+        return set
     }
 
     private fun updateConnectionStatus(isConnected: Boolean) {
@@ -172,5 +274,22 @@ class DeviceDetailsActivity : AppCompatActivity() {
             connectionStatusTextView.text = "Disconnected"
             connectionStatusTextView.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
         }
+    }
+
+    private fun formatRecentData(jsonObject: JSONObject): String {
+        val sb = StringBuilder()
+        sb.append("Most Recent Health Data:\n")
+        sb.append("- Timestamp: ${jsonObject.optString("Timestamp")}\n")
+        sb.append("- Air Pressure: ${jsonObject.optString("Air Pressure")}\n")
+        sb.append("- Temperature: ${jsonObject.optString("Temperature")}\n")
+        sb.append("- Altitude: ${jsonObject.optString("Altitude")}\n")
+        sb.append("- Heart Rate: ${jsonObject.optString("HeartRate")}\n")
+        sb.append("- AccelX: ${jsonObject.optString("AccelX")}\n")
+        sb.append("- AccelY: ${jsonObject.optString("AccelY")}\n")
+        sb.append("- AccelZ: ${jsonObject.optString("AccelZ")}\n")
+        sb.append("- Magnitude: ${jsonObject.optString("Magnitude")}\n")
+        sb.append("- Accel Difference: ${jsonObject.optString("AccelDifference")}\n")
+        sb.append("- Step Count: ${jsonObject.optString("StepCount")}\n")
+        return sb.toString()
     }
 }
