@@ -16,6 +16,8 @@
             binding = ActivitySignupBinding.inflate(layoutInflater)
             setContentView(binding.root)
 
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
             // Set a click listener for the submit button
             binding.submitButton.setOnClickListener {
                 val name = binding.nameInput.text.toString()
@@ -40,10 +42,10 @@
                 }
             }
 
-            binding.returnButton.setOnClickListener {
-                val intent = Intent(this, LoginActivity::class.java)
-                startActivity(intent)
-                finish()
-            }
+        }
+
+        override fun onSupportNavigateUp(): Boolean {
+            onBackPressed()
+            return true
         }
     }
