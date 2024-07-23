@@ -17,6 +17,8 @@ import com.punchthrough.blestarterappandroid.databinding.ActivityLoginBinding
 
 import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.MainActivity  // Import MainActivity
+import com.punchthrough.blestarterappandroid.MedicalFormActivity
+import com.punchthrough.blestarterappandroid.SignupActivity
 
 class LoginActivity : AppCompatActivity() {
 
@@ -32,6 +34,7 @@ class LoginActivity : AppCompatActivity() {
         val username = binding.username
         val password = binding.password
         val login = binding.login
+        val signup = binding.signup
         val loading = binding.loading
 
         loginViewModel = ViewModelProvider(this, LoginViewModelFactory())
@@ -97,10 +100,17 @@ class LoginActivity : AppCompatActivity() {
                 loading.visibility = View.VISIBLE
                 loginViewModel.login(username.text.toString(), password.text.toString())
 
-                // Navigate to MainActivity
                 val intent = Intent(this@LoginActivity, MainActivity::class.java)
                 startActivity(intent)
-                finish()  // Optional: finish the LoginActivity so it's removed from the back stack
+                finish()
+            }
+
+            signup?.setOnClickListener {
+                loading.visibility = View.VISIBLE
+
+                val intent = Intent(this@LoginActivity, SignupActivity::class.java)
+                startActivity(intent)
+                finish()
             }
         }
 

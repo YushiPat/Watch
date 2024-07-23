@@ -38,11 +38,6 @@
         android:networkSecurityConfig="@xml/network_security_config"
         tools:ignore="GoogleAppIndexingWarning">
         <activity
-            android:name=".MedicalFormActivity"
-            android:exported="true"
-            android:label="@string/title_activity_medical_form">
-        </activity>
-        <activity
             android:name=".ui.login.LoginActivity"
             android:exported="true"
             android:label="@string/title_activity_login">
@@ -52,11 +47,19 @@
         </intent-filter>
         </activity>
         <activity
-            android:name=".BleOperationsActivity"
+            android:name=".SignupActivity"
+            android:exported="true"
+            android:label="Sign Up"/>
+        <activity
+            android:name=".MainActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".MainActivity"
+            android:name=".MedicalFormActivity"
+            android:exported="true"
+            android:label="@string/title_activity_medical_form"/>
+        <activity
+            android:name=".BleOperationsActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
