@@ -4,12 +4,18 @@ import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.le.AdvertiseCallback
+import android.bluetooth.le.AdvertiseData
+import android.bluetooth.le.AdvertiseSettings
+import android.bluetooth.le.AdvertisingSetParameters
+import android.bluetooth.le.BluetoothLeAdvertiser
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.ParcelUuid
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -21,12 +27,23 @@ import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
     private lateinit var bluetoothAdapter: BluetoothAdapter
     private lateinit var bluetoothLeScanner: BluetoothLeScanner
     private lateinit var deviceListAdapter: DeviceListAdapter
+    private lateinit var bluetoothLeAdvertiser: BluetoothLeAdvertiser
     private val deviceList: ArrayList<BluetoothDevice> = ArrayList()
+    private val advertiseCallback = object : AdvertiseCallback() {
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+            Log.i("MainActivity", "LE Advertise Started.")
+        }
+
+        override fun onStartFailure(errorCode: Int) {
+            Log.e("MainActivity", "LE Advertise Failed: $errorCode")
+        }
+    }
 
     companion object {
         private const val REQUEST_ENABLE_BT = 1
@@ -40,6 +57,8 @@ class MainActivity : AppCompatActivity() {
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
+
+        bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
         val listView: ListView = findViewById(R.id.device_list)
         deviceListAdapter = DeviceListAdapter(this, deviceList)
@@ -61,6 +80,26 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
     }
 
+    private fun startAdvertising() {
+        val settings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+            .setConnectable(true)
+            .build()
+
+        val data = AdvertiseData.Builder()
+            .setIncludeDeviceName(true)
+            .addServiceUuid(ParcelUuid(UUID.fromString("0000180A-0000-1000-8000-00805F9B34FB")))
+            .addServiceData(ParcelUuid(UUID.fromString("0000180A-0000-1000-8000-00805F9B34FB")), byteArrayOf(0x65))
+            .build()
+
+        bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
+    }
+
+    private fun stopAdvertising() {
+        bluetoothLeAdvertiser.stopAdvertising(advertiseCallback)
+    }
+
     private fun checkPermissions() {
         val permissionsToRequest = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -72,10 +111,14 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+        }
         if (permissionsToRequest.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), REQUEST_LOCATION_PERMISSION)
         } else {
             startScanning()
+            startAdvertising()
         }
     }
 
@@ -145,11 +188,13 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         stopScanning()
+        stopAdvertising()
     }
 
     override fun onResume() {
         super.onResume()
         startScanning()
+        startAdvertising()
     }
 
     private inner class DeviceListAdapter(context: Activity, private val devices: ArrayList<BluetoothDevice>) : ArrayAdapter<BluetoothDevice>(context, 0, devices) {
