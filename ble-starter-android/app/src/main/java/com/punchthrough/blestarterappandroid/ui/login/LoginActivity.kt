@@ -57,7 +57,9 @@ class LoginActivity : AppCompatActivity() {
         loginViewModel.loginResult.observe(this@LoginActivity, Observer {
             val loginResult = it ?: return@Observer
 
-            loading.visibility = View.GONE
+            // Comment out the visibility changes for loading
+            // loading.visibility = View.GONE
+
             if (loginResult.error != null) {
                 showLoginFailed(loginResult.error)
             }
@@ -97,7 +99,9 @@ class LoginActivity : AppCompatActivity() {
             }
 
             login.setOnClickListener {
-                loading.visibility = View.VISIBLE
+                // Comment out the visibility change for loading
+                // loading.visibility = View.VISIBLE
+
                 loginViewModel.login(username.text.toString(), password.text.toString())
 
                 val intent = Intent(this@LoginActivity, MainActivity::class.java)
@@ -106,11 +110,11 @@ class LoginActivity : AppCompatActivity() {
             }
 
             signup?.setOnClickListener {
-                loading.visibility = View.VISIBLE
+                // Comment out the visibility change for loading
+                // loading.visibility = View.VISIBLE
 
                 val intent = Intent(this@LoginActivity, SignupActivity::class.java)
                 startActivity(intent)
-                finish()
             }
         }
 
@@ -119,14 +123,15 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun updateUiWithUser(model: LoggedInUserView) {
-//        val welcome = getString(R.string.welcome)
-//        val displayName = model.displayName
+        // Comment out or remove the code for displaying a toast message
+        // val welcome = getString(R.string.welcome)
+        // val displayName = model.displayName
         // TODO : initiate successful logged in experience
-//        Toast.makeText(
-//            applicationContext,
-//            "$welcome $displayName",
-//            Toast.LENGTH_LONG
-//        ).show()
+        // Toast.makeText(
+        //     applicationContext,
+        //     "$welcome $displayName",
+        //     Toast.LENGTH_LONG
+        // ).show()
     }
 
     private fun showLoginFailed(@StringRes errorString: Int) {
