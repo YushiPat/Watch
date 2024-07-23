@@ -13,7 +13,7 @@ CORS(app)
 # MongoDB setup
 client = MongoClient('mongodb+srv://lmaoking0:zlIsFpEOJ7l78Y8W@cluster0.9yuhxy8.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 db = client['health_metrics']
-health_metrics_records = db.health_metrics_records
+health_metrics_records = db.health_metrics
 user_account_records = db.user_accounts
 prediction_records = db.heart_rate
 
@@ -114,4 +114,4 @@ def get_heart_rate_data(patient_id):
     return jsonify(heart_rate_data), 200
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
