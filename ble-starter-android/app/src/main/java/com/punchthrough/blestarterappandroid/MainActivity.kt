@@ -27,6 +27,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
@@ -49,11 +50,28 @@ class MainActivity : AppCompatActivity() {
         private const val REQUEST_ENABLE_BT = 1
         private const val REQUEST_LOCATION_PERMISSION = 2
         const val TARGET_DEVICE_ID = "E9:75:84:73:13:A2"
+        var userAge: Int = 60
+        var userGender: String = "M"
     }
+
+    var userGenderBinary = if (userGender == "M") 0 else 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        val navView: BottomNavigationView = findViewById(R.id.bottom_navigation)
+
+        navView.setOnNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.navigation_medical_form -> {
+                    val intent = Intent(this, MedicalFormActivity::class.java)
+                    startActivity(intent)
+                    true
+                }
+                else -> false
+            }
+        }
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
@@ -90,7 +108,8 @@ class MainActivity : AppCompatActivity() {
         val data = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .addServiceUuid(ParcelUuid(UUID.fromString("0000180A-0000-1000-8000-00805F9B34FB")))
-            .addServiceData(ParcelUuid(UUID.fromString("0000180A-0000-1000-8000-00805F9B34FB")), byteArrayOf(0x65))
+            .addServiceData(ParcelUuid(UUID.fromString("0000180A-0000-1000-8000-00805F9B34FB")), byteArrayOf(
+                userAge.toByte(), userGenderBinary.toByte()))
             .build()
 
         bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
