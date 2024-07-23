@@ -1,60 +1,59 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
-import { storeSensorData } from "../api/apiServices"; // Updated to import only storeSensorData
+import { storeSignalData } from "../api/apiServices";
 
 const App: React.FC = () => {
-  const [pulse, setPulse] = useState<number>(1); // Start with 1
-  const [isMonitoring, setIsMonitoring] = useState<boolean>(false); // State to track monitoring status
+  const [pulse, setPulse] = useState<number>(70);
+  const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!isMonitoring) return;
+    let intervalId: NodeJS.Timeout | null = null;
 
-    // Function to handle sending the pulse data
-    const sendPulseData = () => {
-      const newPulse = generateNextValue(pulse);
-      setPulse(newPulse);
+    if (isMonitoring) {
+      intervalId = setInterval(() => {
+        const newPulse = generateHeartRate(pulse);
+        setPulse(newPulse);
 
-      // Store new sensor data in the database
-      const userData = {
-        patient_id: "P123456789", // Replace with actual patient ID
-        heart_rate: newPulse,
-        time_of_data: new Date().toISOString(),
-        // Add other sensor data fields as needed
-      };
-      storeSensorData(userData)
-        .then(() => console.log("Data stored successfully:", userData))
-        .catch((error) => console.error("Error storing data:", error));
+        // Store new sensor data in the database
+        const userData = {
+          patient_id: "P123456789",
+          heart_rate: newPulse,
+          time_of_data: new Date().toISOString(),
+        };
+        storeSignalData(userData)
+          .then(() => console.log("Data stored successfully:", userData))
+          .catch((error: string) =>
+            console.error("Error storing data:", error)
+          );
+      }, 1000);
+    }
 
-      // Continue sending data every second
-      setTimeout(sendPulseData, 1000);
-    };
-
-    // Start sending data
-    sendPulseData();
-
-    // Cleanup function to stop sending data when monitoring stops
     return () => {
-      setIsMonitoring(false); // This will stop the sending loop
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [isMonitoring, pulse]);
 
   const startMonitoring = () => {
-    setIsMonitoring(true); // Start monitoring
+    setIsMonitoring(true);
   };
 
   const stopMonitoring = () => {
-    setIsMonitoring(false); // Stop monitoring
+    setIsMonitoring(false);
   };
 
-  const generateNextValue = (currentPulse: number): number => {
-    const nextPulse = (currentPulse % 10) + 1; // Cycle through numbers 1 to 10
-    return nextPulse;
+  const generateHeartRate = (currentPulse: number): number => {
+    const variation = (Math.random() - 0.5) * 1.2;
+    let newPulse = currentPulse + variation;
+    newPulse = Math.max(60, Math.min(75, newPulse));
+    return newPulse;
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Heart Rate Monitor</Text>
-      <Text style={styles.pulse}>{pulse} BPM</Text>
+      <Text style={styles.pulse}>{pulse.toFixed(1)} BPM</Text>
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
