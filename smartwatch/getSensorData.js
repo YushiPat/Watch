@@ -18,6 +18,8 @@ var localStorageData = []; // Array to store data locally when not connected to 
 
 const zeroHeartRateThreshold = 30000; // Duration (ms) for how long the heart rate can be zero before advertising again
 var heartRateZeroStart = null; // Timestamp when heart rate first became zero
+var age = 0;
+var gender = 0;
 
 // Function to reset step count at midnight
 function resetDailyStepCount() {
@@ -47,9 +49,15 @@ function formatTime(date) {
 
 // Function to show alert on the screen
 function showAlert(title, message) {
+    if (alertCooldown) {
+        console.log('Alert suppressed due to cooldown.');
+        return;
+    }
     console.log('Showing alert:', title, message); // Log alert details
     g.clear(); // Clear screen
-    g.setColor("#ff0000"); // Set color to red
+    g.setColor("#ff0000"); // Set background color to red
+    g.fillRect(0, 0, g.getWidth(), g.getHeight()); // Fill the screen with red
+    g.setColor("#ffffff"); // Set text color to white
     g.setFont("6x8", 4); // Increase font size
     g.setFontAlign(0, 0); // Center text
     g.drawString(title, g.getWidth()/2, g.getHeight()/2 - 10); // Display title
@@ -69,7 +77,7 @@ function showAlert(title, message) {
         if (alertActive) {
             console.log('Alert dismissed by touch'); // Log alert dismissal
             g.clear(); // Clear screen on tap
-            g.setColor(defaultColor); // Reset color to default
+            g.setColor("#000000"); // Reset color to default
             g.setFont("6x8", 2); // Reset font size
             alertActive = false; // Clear alert active flag
 
@@ -82,8 +90,8 @@ function showAlert(title, message) {
             // Set cooldown flag
             alertCooldown = true;
             setTimeout(function() {
-                alertCooldown = false; // Clear cooldown flag after cooldown period (e.g., 5 minutes)
-            }, 5000); // 5 minutes cooldown period (adjust as needed)
+                alertCooldown = false; // Clear cooldown flag after cooldown period
+            }, 300000); // 5 minutes cooldown period (adjust as needed)
 
             // Detach touch event handler to prevent multiple dismissals
             Bangle.removeListener('touch', handleAlertDismiss);
@@ -94,9 +102,130 @@ function showAlert(title, message) {
     Bangle.on('touch', handleAlertDismiss);
 }
 
-// Function to check heart rate and trigger alert if abnormal and non-zero
+
+
+// Define age and heart rate thresholds based on age
+const ageHeartRateZones = {
+    20: { targetMin: 100, targetMax: 170, max: 200 },
+    30: { targetMin: 95, targetMax: 162, max: 190 },
+    35: { targetMin: 93, targetMax: 157, max: 185 },
+    40: { targetMin: 90, targetMax: 153, max: 180 },
+    45: { targetMin: 88, targetMax: 149, max: 175 },
+    50: { targetMin: 85, targetMax: 145, max: 170 },
+    55: { targetMin: 83, targetMax: 140, max: 165 },
+    60: { targetMin: 80, targetMax: 136, max: 160 },
+    65: { targetMin: 78, targetMax: 132, max: 155 },
+    70: { targetMin: 75, targetMax: 128, max: 150 }
+};
+
+let exerciseStart = null;
+let exerciseType = null;
+let lastPromptTime = 0; // Timestamp of the last "Exercising?" or "Moderate/Intense" prompt
+
+// Function to show alert with buttons
+function showAlertWithButtons(title, message, callbackYes, callbackNo) {
+    console.log('Showing alert with buttons:', title, message); // Log alert details
+    g.clear(); // Clear screen
+    alertActive = true;
+    g.setColor("#003366"); // Dark blue background
+    g.fillRect(0, 0, g.getWidth(), g.getHeight()); // Fill screen with dark blue
+    g.setColor("#ffffff"); // Set color to white
+    g.setFont("6x8", 2); // Increase font size
+    g.setFontAlign(0, 0); // Center text
+    g.drawString(title, g.getWidth() / 2, g.getHeight() / 2 - 20); // Display title
+    g.drawString(message, g.getWidth() / 2, g.getHeight() / 2 + 20); // Display message
+
+    // Draw buttons
+    g.setColor("#ffffff"); // Set color to white
+    g.fillRect(10, g.getHeight() - 50, g.getWidth() / 2 - 10, g.getHeight() - 10); // Yes button
+    g.fillRect(g.getWidth() / 2 + 10, g.getHeight() - 50, g.getWidth() - 10, g.getHeight() - 10); // No button
+    g.setColor("#000000"); // Set color to black
+    g.setFont("6x8", 2); // Set font size
+    g.drawString("YES", g.getWidth() / 4, g.getHeight() - 30); // Yes button label
+    g.drawString("NO", g.getWidth() * 3 / 4, g.getHeight() - 30); // No button label
+  
+
+    // Handle touch event for buttons
+    function handleButtonPress(_, xy) {
+        if (xy.y > g.getHeight() - 50) {
+            if (xy.x < g.getWidth() / 2) {
+                Bangle.removeListener('touch', handleButtonPress);
+                alertActive = false;
+                callbackYes();
+            } else {
+                Bangle.removeListener('touch', handleButtonPress);
+                alertActive = false;
+                callbackNo();
+            }
+        }
+    }
+
+    // Add touch event listener for button press
+    Bangle.on('touch', handleButtonPress);
+
+    // Remove the listener after 10 seconds if no response
+    setTimeout(function () {
+        Bangle.removeListener('touch', handleButtonPress);
+        callbackNo(); // Default to "No" if no response
+    }, 5000); // 10 seconds timeout
+}
+
+// Function to show the follow-up prompt for exercise intensity
+function showIntensityPrompt(callbackModerate, callbackIntense) {
+    console.log('Showing intensity prompt');
+    alertActive = true;
+    g.clear(); // Clear screen
+    g.setColor("#003366"); // Dark blue background
+    g.fillRect(0, 0, g.getWidth(), g.getHeight()); // Fill screen with dark blue
+    g.setColor("#ffffff"); // Set color to white
+    g.setFont("6x8", 2); // Font size
+    g.setFontAlign(0, 0); // Center text
+    g.drawString("Moderate or Intense?", g.getWidth() / 2, g.getHeight() / 2 - 20); // Display prompt
+
+    // Draw buttons
+    g.setColor("#ffffff"); // Set color to white
+    g.fillRect(10, g.getHeight() - 50, g.getWidth() / 2 - 10, g.getHeight() - 10); // Moderate button
+    g.fillRect(g.getWidth() / 2 + 10, g.getHeight() - 50, g.getWidth() - 10, g.getHeight() - 10); // Intense button
+    g.setColor("#000000"); // Set color to black
+    g.setFont("6x8", 2); // Set font size
+    g.drawString("M", g.getWidth() / 4, g.getHeight() - 30); // Moderate button label
+    g.drawString("I", g.getWidth() * 3 / 4, g.getHeight() - 30); // Intense button label
+
+    // Handle touch event for buttons
+    function handleButtonPress(_, xy) {
+        if (xy.y > g.getHeight() - 50) {
+            if (xy.x < g.getWidth() / 2) {
+                console.log('User pressed Moderate');
+                Bangle.removeListener('touch', handleButtonPress);
+                g.clear(); // Clear the screen after response
+                alertActive = false;
+                callbackModerate();
+            } else {
+                console.log('User pressed Intense');
+                Bangle.removeListener('touch', handleButtonPress);
+                g.clear(); // Clear the screen after response
+                alertActive = false;
+                callbackIntense();
+            }
+        }
+    }
+
+    // Add touch event listener for button press
+    Bangle.on('touch', handleButtonPress);
+
+    // Remove the listener after 10 seconds if no response
+    setTimeout(function () {
+        Bangle.removeListener('touch', handleButtonPress);
+        console.log('No response. Defaulting to Moderate.');
+        g.clear(); // Clear the screen after timeout
+        callbackModerate(); // Default to moderate if no response
+    }, 10000); // 10 seconds timeout
+}
+
+
+var lastAbnormalAlertTime = 0; // Variable to store the timestamp of the last abnormal alert
+
 function checkHeartRate(heartRate) {
-    //console.log('Checking heart rate:', heartRate); // Log heart rate check
     if (heartRate === 0) {
         if (heartRateZeroStart === null) {
             heartRateZeroStart = Date.now(); // Record start time when heart rate becomes zero
@@ -108,14 +237,88 @@ function checkHeartRate(heartRate) {
         heartRateZeroStart = null; // Reset the start time if heart rate is non-zero
     }
 
-    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < -1 || heartRate > 120)) {
-        showAlert("","Abno-\nrmal\nHeart\nRate");
-        // Record abnormal heart rate data
-        var timestamp = new Date().toISOString();
-        var abnormalData = { type: 'Heart Rate', timestamp: timestamp, value: heartRate };
-        console.log('Abnormal heart rate recorded:', abnormalData);
+    let currentTime = Date.now();
+
+    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < 50 || heartRate > 80)) {
+        if (currentTime - lastPromptTime > 30 * 60 * 1000) { // 30 minutes cooldown
+            showAlertWithButtons("Alert", "Exercising?", function () {
+                // User pressed YES
+                console.log('User is exercising.');
+                exerciseType = null; // Reset exercise type
+                alertActive = false;
+                alertCooldown = true; // Set cooldown to prevent immediate re-prompt
+                lastPromptTime = Date.now(); // Update last prompt time
+                // Close previous alert and show the new prompt
+                g.clear();
+                showIntensityPrompt(function () {
+                    // Moderate exercise
+                    exerciseType = 'moderate';
+                    console.log('User selected Moderate exercise.');
+                    let targetZone = ageHeartRateZones[age];
+                    if (heartRate < targetZone.targetMin || heartRate > targetZone.targetMax) {
+                        showAlert("", "Abno-\nrmal\nHeart\nRate");
+                        lastAbnormalAlertTime = Date.now(); // Record time of abnormal alert
+                    } else {
+                        console.log('Heart rate within target zone.');
+                    }
+                    alertCooldown = false; // Reset cooldown after checking
+                }, function () {
+                    // Intense exercise
+                    exerciseType = 'intense';
+                    console.log('User selected Intense exercise.');
+                    let maxHeartRate = ageHeartRateZones[age].max;
+                    if (heartRate > maxHeartRate) {
+                        showAlert("", "Abno-\nrmal\nHeart\nRate");
+                        lastAbnormalAlertTime = Date.now(); // Record time of abnormal alert
+                    } else {
+                        console.log('Heart rate within max limit.');
+                    }
+                    alertCooldown = false; // Reset cooldown after checking
+                });
+            }, function () {
+                // User pressed NO or no response
+                console.log('Abnormal heart rate detected.');
+                if (currentTime - lastAbnormalAlertTime > 5 * 60 * 1000) { // 5 minutes cooldown for abnormal alert
+                    showAlert("", "Abno-\nrmal\nHeart\nRate");
+                    lastAbnormalAlertTime = Date.now(); // Record time of abnormal alert
+                } else {
+                    console.log('Abnormal alert suppressed due to cooldown.');
+                }
+                lastPromptTime = Date.now(); // Update last prompt time
+            });
+        }
+    } else if (exerciseType) {
+        // If exerciseType is set, check if heart rate is within acceptable range for that exercise
+        if (exerciseType === 'moderate') {
+            let targetZone = ageHeartRateZones[age];
+            if (heartRate < targetZone.targetMin || heartRate > targetZone.targetMax) {
+                console.log('Heart rate out of target zone!');
+                if (currentTime - lastAbnormalAlertTime > 5 * 60 * 1000) { // 5 minutes cooldown for abnormal alert
+                    showAlert("", "Abno-\nrmal\nHeart\nRate");
+                    lastAbnormalAlertTime = Date.now(); // Record time of abnormal alert
+                } else {
+                    console.log('Abnormal alert suppressed due to cooldown.');
+                }
+            } else {
+                console.log('Heart rate within target zone.');
+            }
+        } else if (exerciseType === 'intense') {
+            let maxHeartRate = ageHeartRateZones[age].max;
+            if (heartRate > maxHeartRate) {
+                console.log('Heart rate exceeds max limit!');
+                if (currentTime - lastAbnormalAlertTime > 5 * 60 * 1000) { // 5 minutes cooldown for abnormal alert
+                    showAlert("", "Abno-\nrmal\nHeart\nRate");
+                    lastAbnormalAlertTime = Date.now(); // Record time of abnormal alert
+                } else {
+                    console.log('Abnormal alert suppressed due to cooldown.');
+                }
+            } else {
+                console.log('Heart rate within max limit.');
+            }
+        }
     }
 }
+
 
 // Function to immediately advertise the current sensor data
 function advertiseImmediate() {
@@ -220,13 +423,16 @@ function storeDataLocally() {
     });
 }
 
-// Function to draw the clock face
+
+
 function drawClock() {
+  if (!alertActive) {
     var now = new Date();
     g.clear(); // Clear the screen
-    g.setFont("6x8"); // Set font size
+    g.setFont("6x8", 3);
     g.setFontAlign(0, 0); // Center align
     g.drawString(formatTime(now), g.getWidth()/2, g.getHeight()/2); // Display time
+  }
 }
 
 // Function to start the clock
@@ -355,51 +561,6 @@ function toUTF8Array(str) {
 // Function to start scanning and discover characteristics
 function checkBluetoothConnection() {
     var status = NRF.getSecurityStatus();
-    g.clear(); // Clear the screen
-
-    // Set text color and font size
-    g.setColor("#000000"); // Black color for text
-    g.setFont("6x8"); // Font size
-    g.setFontAlign(0, 0); // Center text alignment
-
-    // Display connected address
-    g.drawString('Connected Addr:', g.getWidth()/2, g.getHeight()/2 - 20);
-    g.drawString(status.connected_addr, g.getWidth()/2, g.getHeight()/2);
-    
-
-    if (status.connected) {
-        // Start scanning for devices with the connected address filter
-        NRF.setScan(function(d) {
-            g.clear(); // Clear the screen
-            g.setColor("#000000"); // Black color for text
-            g.setFont("6x8"); // Font size
-            g.setFontAlign(0, 0); // Center text alignment
-            
-            // Display scanned device data
-            var scanResult = JSON.stringify(d, null, 2);
-            //g.drawString(scanResult, g.getWidth()/2, 10);
-            
-            // Log the scan result for debugging
-            console.log('Scanned device:', d);
-        });
-      
-      if(!status.bonded){
-      NRF.startBonding().then(function() {
-                    console.log('Bonding started');
-                }).catch(function(error) {
-                    console.log('Error starting bonding:', error);
-                });
-         
-      }else{
-      g.drawString('Resolved Addr:', g.getWidth()/2, g.getHeight()/2 + 40);
-      g.drawString(NRF.resolveAddress(NRF.getSecurityStatus().connected_addr), g.getWidth()/2, g.getHeight()/2 +60);
-      
-        
-      }
-            
-    } else {
-        g.drawString('No device connected.', g.getWidth()/2, g.getHeight()/2);
-    }
 
     // Log the status for debugging
     console.log('Bluetooth status:', status);
@@ -457,6 +618,22 @@ function advertiseStoredData() {
 
 // Initialize the watch
 function init() {
+    var targetServiceUUID = '180a';
+
+    NRF.setScan(function(device) {
+        if (device.services && device.services.includes(targetServiceUUID)) {
+          //console.log("Device Found: " + JSON.stringify(device.serviceData[targetServiceUUID]));
+          age = device.serviceData[targetServiceUUID][0];
+          gender = device.serviceData[targetServiceUUID][1];
+          console.log("Device Found: "+ JSON.stringify(age)+","+JSON.stringify(gender));
+          
+          NRF.setScan(); // Stop scanning
+        } else {
+          console.log("Device Not Found");
+        }
+      }, { filters: [{ services: [targetServiceUUID] }] });
+  
+
     // Start the reset function to handle daily step count reset
     resetDailyStepCount();
 
@@ -466,7 +643,7 @@ function init() {
     // Start advertising and heart rate monitoring
     startAdvertising();
     startHeartRateMonitoring();
-    //startClock(); // Start the clock face display
+    startClock(); // Start the clock face display
 
     // Periodically check Bluetooth connection status
     setInterval(checkBluetoothConnection, 10000); // Check every 10 seconds
