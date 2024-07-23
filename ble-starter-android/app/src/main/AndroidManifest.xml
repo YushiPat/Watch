@@ -41,15 +41,16 @@
             android:name=".MedicalFormActivity"
             android:exported="true"
             android:label="@string/title_activity_medical_form">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
         <activity
             android:name=".ui.login.LoginActivity"
             android:exported="true"
-            android:label="@string/title_activity_login" />
+            android:label="@string/title_activity_login">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+        </activity>
         <activity
             android:name=".BleOperationsActivity"
             android:exported="false"
