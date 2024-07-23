@@ -108,7 +108,7 @@ function checkHeartRate(heartRate) {
         heartRateZeroStart = null; // Reset the start time if heart rate is non-zero
     }
 
-    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < 40 || heartRate > 120)) {
+    if (!alertActive && !alertCooldown && heartRate > 0 && (heartRate < -1 || heartRate > 120)) {
         showAlert("","Abno-\nrmal\nHeart\nRate");
         // Record abnormal heart rate data
         var timestamp = new Date().toISOString();
@@ -351,11 +351,65 @@ function toUTF8Array(str) {
     return new Uint8Array(utf8);
 }
 
-// Function to check if the device is connected to Bluetooth
+
+// Function to start scanning and discover characteristics
 function checkBluetoothConnection() {
-    var connected = NRF.getSecurityStatus().connected;
-    console.log('Bluetooth connected:', connected);
+    var status = NRF.getSecurityStatus();
+    g.clear(); // Clear the screen
+
+    // Set text color and font size
+    g.setColor("#000000"); // Black color for text
+    g.setFont("6x8"); // Font size
+    g.setFontAlign(0, 0); // Center text alignment
+
+    // Display connected address
+    g.drawString('Connected Addr:', g.getWidth()/2, g.getHeight()/2 - 20);
+    g.drawString(status.connected_addr, g.getWidth()/2, g.getHeight()/2);
+    
+
+    if (status.connected) {
+        // Start scanning for devices with the connected address filter
+        NRF.setScan(function(d) {
+            g.clear(); // Clear the screen
+            g.setColor("#000000"); // Black color for text
+            g.setFont("6x8"); // Font size
+            g.setFontAlign(0, 0); // Center text alignment
+            
+            // Display scanned device data
+            var scanResult = JSON.stringify(d, null, 2);
+            //g.drawString(scanResult, g.getWidth()/2, 10);
+            
+            // Log the scan result for debugging
+            console.log('Scanned device:', d);
+        });
+      
+      if(!status.bonded){
+      NRF.startBonding().then(function() {
+                    console.log('Bonding started');
+                }).catch(function(error) {
+                    console.log('Error starting bonding:', error);
+                });
+         
+      }else{
+      g.drawString('Resolved Addr:', g.getWidth()/2, g.getHeight()/2 + 40);
+      g.drawString(NRF.resolveAddress(NRF.getSecurityStatus().connected_addr), g.getWidth()/2, g.getHeight()/2 +60);
+      
+        
+      }
+            
+    } else {
+        g.drawString('No device connected.', g.getWidth()/2, g.getHeight()/2);
+    }
+
+    // Log the status for debugging
+    console.log('Bluetooth status:', status);
 }
+
+
+
+
+
+
 
 function concatenatePrefix(chunks, prefix) {
     return chunks.map(chunk => prefix + chunk);
@@ -412,7 +466,7 @@ function init() {
     // Start advertising and heart rate monitoring
     startAdvertising();
     startHeartRateMonitoring();
-    startClock(); // Start the clock face display
+    //startClock(); // Start the clock face display
 
     // Periodically check Bluetooth connection status
     setInterval(checkBluetoothConnection, 10000); // Check every 10 seconds
