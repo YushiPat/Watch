@@ -64,6 +64,12 @@ class MainActivity : AppCompatActivity() {
         deviceListAdapter = DeviceListAdapter(this, deviceList)
         listView.adapter = deviceListAdapter
 
+        val formButton: Button = findViewById(R.id.form_button)
+        formButton.setOnClickListener {
+            val intent = Intent(this, MedicalFormActivity::class.java)
+            startActivity(intent)
+        }
+
         val refreshButton: Button = findViewById(R.id.refresh_button)
         refreshButton.setOnClickListener {
             refreshDeviceList()

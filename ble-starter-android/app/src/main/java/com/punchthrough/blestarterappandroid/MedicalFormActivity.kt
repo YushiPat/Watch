@@ -1,6 +1,8 @@
 package com.punchthrough.blestarterappandroid
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.punchthrough.blestarterappandroid.databinding.ActivityMedicalFormBinding
@@ -36,6 +38,12 @@ class MedicalFormActivity : AppCompatActivity() {
                 // Show an error message to the user
                 Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_LONG).show()
             }
+        }
+
+        binding.returnButton.setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            finish()
         }
     }
 }
