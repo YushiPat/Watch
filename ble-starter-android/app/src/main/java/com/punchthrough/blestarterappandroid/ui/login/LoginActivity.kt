@@ -3,6 +3,7 @@ package com.punchthrough.blestarterappandroid.ui.login
 import android.app.Activity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import android.content.Intent
 import android.os.Bundle
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +16,9 @@ import android.widget.Toast
 import com.punchthrough.blestarterappandroid.databinding.ActivityLoginBinding
 
 import com.punchthrough.blestarterappandroid.R
+import com.punchthrough.blestarterappandroid.MainActivity  // Import MainActivity
+import com.punchthrough.blestarterappandroid.MedicalFormActivity
+import com.punchthrough.blestarterappandroid.SignupActivity
 
 class LoginActivity : AppCompatActivity() {
 
@@ -30,6 +34,7 @@ class LoginActivity : AppCompatActivity() {
         val username = binding.username
         val password = binding.password
         val login = binding.login
+        val signup = binding.signup
         val loading = binding.loading
 
         loginViewModel = ViewModelProvider(this, LoginViewModelFactory())
@@ -38,8 +43,8 @@ class LoginActivity : AppCompatActivity() {
         loginViewModel.loginFormState.observe(this@LoginActivity, Observer {
             val loginState = it ?: return@Observer
 
-            // disable login button unless both username / password is valid
-            login.isEnabled = loginState.isDataValid
+            // Comment out or remove this part to always enable the login button
+            // login.isEnabled = loginState.isDataValid
 
             if (loginState.usernameError != null) {
                 username.error = getString(loginState.usernameError)
@@ -52,7 +57,9 @@ class LoginActivity : AppCompatActivity() {
         loginViewModel.loginResult.observe(this@LoginActivity, Observer {
             val loginResult = it ?: return@Observer
 
-            loading.visibility = View.GONE
+            // Comment out the visibility changes for loading
+            // loading.visibility = View.GONE
+
             if (loginResult.error != null) {
                 showLoginFailed(loginResult.error)
             }
@@ -61,7 +68,7 @@ class LoginActivity : AppCompatActivity() {
             }
             setResult(Activity.RESULT_OK)
 
-            //Complete and destroy login activity once successful
+            // Complete and destroy login activity once successful
             finish()
         })
 
@@ -92,21 +99,39 @@ class LoginActivity : AppCompatActivity() {
             }
 
             login.setOnClickListener {
-                loading.visibility = View.VISIBLE
+                // Comment out the visibility change for loading
+                // loading.visibility = View.VISIBLE
+
                 loginViewModel.login(username.text.toString(), password.text.toString())
+
+                val intent = Intent(this@LoginActivity, MainActivity::class.java)
+                startActivity(intent)
+                finish()
+            }
+
+            signup?.setOnClickListener {
+                // Comment out the visibility change for loading
+                // loading.visibility = View.VISIBLE
+
+                val intent = Intent(this@LoginActivity, SignupActivity::class.java)
+                startActivity(intent)
             }
         }
+
+        // Always enable the login button
+        login.isEnabled = true
     }
 
     private fun updateUiWithUser(model: LoggedInUserView) {
-        val welcome = getString(R.string.welcome)
-        val displayName = model.displayName
+        // Comment out or remove the code for displaying a toast message
+        // val welcome = getString(R.string.welcome)
+        // val displayName = model.displayName
         // TODO : initiate successful logged in experience
-        Toast.makeText(
-            applicationContext,
-            "$welcome $displayName",
-            Toast.LENGTH_LONG
-        ).show()
+        // Toast.makeText(
+        //     applicationContext,
+        //     "$welcome $displayName",
+        //     Toast.LENGTH_LONG
+        // ).show()
     }
 
     private fun showLoginFailed(@StringRes errorString: Int) {

@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Request legacy Bluetooth permissions on versions older than API 31 (Android 12). -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <uses-permission
+        android:name="android.permission.INTERNET" />
     <uses-permission
         android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
@@ -20,6 +24,7 @@
         tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="true" />
@@ -30,31 +35,36 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:ignore="GoogleAppIndexingWarning">
         <activity
             android:name=".ui.login.LoginActivity"
             android:exported="true"
             android:label="@string/title_activity_login">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
         </activity>
+        <activity
+            android:name=".SignupActivity"
+            android:exported="true"
+            android:label="Sign Up"/>
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".MedicalFormActivity"
+            android:exported="true"
+            android:label="@string/title_activity_medical_form"/>
         <activity
             android:name=".BleOperationsActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:screenOrientation="portrait">
-        </activity>
-        <activity
-            android:name=".FormActivity"
-            android:exported="false"
-            android:label="@string/title_activity_form"
-            android:theme="@style/AppTheme" />
+            android:name=".DeviceDetailsActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
