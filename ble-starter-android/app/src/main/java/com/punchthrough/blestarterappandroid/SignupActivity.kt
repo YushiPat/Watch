@@ -1,5 +1,6 @@
 package com.punchthrough.blestarterappandroid
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -17,7 +18,6 @@ class SignupActivity : AppCompatActivity() {
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        // Set a click listener for the submit button
         binding.submitButton.setOnClickListener {
             val name = binding.nameInput.text.toString()
             val gender = binding.genderInput.text.toString()
@@ -31,7 +31,6 @@ class SignupActivity : AppCompatActivity() {
             val password = binding.password.text.toString()
             val email = binding.email.text.toString()
 
-            // Add your form submission logic here
             if (name.isNotBlank() && gender.isNotBlank() && birthdate.isNotBlank() && height != null && weight != null && username.isNotBlank() && password.isNotBlank() && email.isNotBlank()) {
                 // Process the input data
                 // For example, you could save it to a database or send it to a server
@@ -45,7 +44,6 @@ class SignupActivity : AppCompatActivity() {
 
             } else {
                 // Handle validation errors
-                // Show an error message to the user
                 Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_LONG).show()
             }
         }
