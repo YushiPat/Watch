@@ -1,12 +1,6 @@
-import os
-from socketio import Client
-from pymongo import MongoClient
-from dotenv import load_dotenv
+import requests
 import json
-import time
 
-# Create a Socket.IO client instance
-sio = Client(logger=True, engineio_logger=True)
 # Sample data with two patients
 sample_data = {
     "data": [
@@ -60,7 +54,7 @@ sample_data = {
             "accelerometer_readings": 1.0,
             "age": 40,
             "current_symptoms": {
-                "chest_pain_frequency": "none",
+                "chest_pain_frequency": "occasional",
                 "dizziness": 0,
                 "fatigue_level": "low",
                 "shortness_of_breath": 0
@@ -103,157 +97,27 @@ sample_data = {
 
 # URL of the Flask app
 BASE_URL = 'http://127.0.0.1:5000'
-# Event flags and response storage
-received_response = None
-received_error = None
-
-# Load environment variables
-load_dotenv()
-
-# MongoDB connection and data retrieval
-mongo_url = os.getenv('MONGO_DB_CONNECTION')
-client = MongoClient(mongo_url)
-db = client.get_database("health_metrics")
-documents = list(db.test.find())
-print(f"Fetched {len(documents)} documents from MongoDB.")
-
-# Create a new collection
-predictions_collection = db.predictions  # Basic predictions
-risk_collection = db.risk_assessments    # Risk assessments
-explanation_collection = db.explanations  # Explanations
 
 
-@sio.event
-def connect():
-    print("Connected to server")
-
-
-@sio.event
-def disconnect():
-    print("Disconnected from server")
-
-
-# Event flags and response storage
-received_response = None
-received_error = None
-
-
-@sio.event
-def connect():
-    print("Connected to server")
-
-
-@sio.event
-def disconnect():
-    print("Disconnected from server")
-
-
-@sio.event
-def prediction_result(data):
-    global received_response
-    received_response = data
-    sio.disconnect()
-
-
-@sio.event
-def risk_assessment(data):
-    global received_response
-    received_response = data
-    sio.disconnect()
-
-
-@sio.event
-def explanation_response(data):
-    global received_response
-    received_response = data
-    sio.disconnect()
-
-
-@sio.event
-def prediction_error(data):
-    global received_error
-    received_error = data
-    sio.disconnect()
-
-
-# Modify the test_websocket_endpoint function
-def test_websocket_endpoint(event_name, payload, timeout=10):
-    global received_response, received_error
-    received_response = None
-    received_error = None
-
-    try:
-        # Force new connection each time
-        if sio.connected:
-            sio.disconnect()
-
-        sio.connect('http://127.0.0.1:5000')
-        sio.emit(event_name, payload)
-
-        # Wait for response
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            if received_response or received_error:
-                break
-            time.sleep(0.1)
-
-        if received_error:
-            print(f"Error: {json.dumps(received_error, indent=2)}")
-        elif received_response:
-            print("Success:", json.dumps(received_response, indent=2))
-        else:
-            print("Timeout waiting for response")
-
-    except Exception as e:
-        print(f"Error during {event_name}: {str(e)}")
-    finally:
-        if sio.connected:
-            sio.disconnect()
-        time.sleep(0.5)  # Cleanup time
-        received_response = None
-        received_error = None
-
-
-# Add verification steps after each test
-def verify_collections():
-    # Basic predictions
-    print("\nBasic Predictions Collection:")
-    print(predictions_collection.count_documents({}))
-
-    # Risk assessments
-    print("Risk Assessments Collection:")
-    print(risk_collection.count_documents({}))
-
-    # Explanations
-    print("Explanations Collection:")
-    print(explanation_collection.count_documents({}))
+def test_endpoint(endpoint, payload):
+    response = requests.post(f"{BASE_URL}{endpoint}", json=payload)
+    print(f"\nTesting {endpoint}:")
+    if response.status_code == 200:
+        print("Success:", json.dumps(response.json(), indent=2))
+    else:
+        print("Error:", response.status_code, response.json()['error'])
 
 
 # Test with Patient 1
+patient_1_payload = {"data": [sample_data["data"][0]], "status": "success"}
 print("Testing with Patient 1 (age 67, high risk):")
-patient_1_payload = {"data": [sample_data["data"][0]]}
-
-print("\nTesting predict:")
-test_websocket_endpoint('predict', patient_1_payload)
-
-print("\nTesting assess_risk:")
-test_websocket_endpoint('assess_risk', patient_1_payload)
-
-print("\nTesting request_explanation:")
-test_websocket_endpoint('request_explanation', patient_1_payload)
+test_endpoint('/api/predict', patient_1_payload)
+test_endpoint('/api/predict/risk', patient_1_payload)
+test_endpoint('/api/predict/explain', patient_1_payload)
 
 # Test with Patient 2
+patient_2_payload = {"data": [sample_data["data"][1]], "status": "success"}
 print("\nTesting with Patient 2 (age 40, low risk):")
-patient_2_payload = {"data": [sample_data["data"][1]]}
-
-print("\nTesting predict:")
-test_websocket_endpoint('predict', patient_2_payload)
-
-print("\nTesting assess_risk:")
-test_websocket_endpoint('assess_risk', patient_2_payload)
-
-print("\nTesting request_explanation:")
-test_websocket_endpoint('request_explanation', patient_2_payload)
-
-# Add this at the end of the test script
-verify_collections()
+test_endpoint('/api/predict', patient_2_payload)
+test_endpoint('/api/predict/risk', patient_2_payload)
+test_endpoint('/api/predict/explain', patient_2_payload)
