@@ -16,7 +16,7 @@ db = client['health_metrics']
 health_metrics_records = db.health_metrics
 user_account_records = db.user_accounts
 prediction_records = db.heart_rate
-
+risk_assessment_records = db.risk_assessments
 prediction_records = db.predictions
 
 # test_health_metrics = {
@@ -112,6 +112,13 @@ def get_heart_rate_data(patient_id):
     
     heart_rate_data = [{"heart_rate": record["heart_rate"], "time_of_data": record["time_of_data"]} for record in data]
     return jsonify(heart_rate_data), 200
+
+@app.route('/api/risk-assessment/latest', methods=['GET'])
+def get_latest_prediction():
+    # Sort by descending timestamp and limit to 1
+    data = list(risk_assessment_records.find().sort("timestamp", -1).limit(1))
+    return dumps(data[0]) if data else jsonify({}), 200
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
