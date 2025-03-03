@@ -1,118 +1,484 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MedicalFormActivity">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/guideline"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintGuide_end="16dp"
-        app:layout_constraintGuide_percent="0.5"/>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-    <EditText
-        android:id="@+id/name_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Name"
-        android:inputType="textPersonName"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="8dp"/>
+        <!-- Original fields -->
+        <EditText
+            android:id="@+id/name_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Name"
+            android:inputType="textPersonName"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
 
-    <EditText
-        android:id="@+id/gender_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Gender"
-        android:inputType="text"
-        app:layout_constraintTop_toBottomOf="@id/name_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <EditText
+            android:id="@+id/gender_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Gender"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/name_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
 
-    <EditText
-        android:id="@+id/birthdate_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Birthdate (YYYY-MM-DD)"
-        android:inputType="date"
-        app:layout_constraintTop_toBottomOf="@id/gender_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <EditText
+            android:id="@+id/birthdate_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Birthdate (YYYY-MM-DD)"
+            android:inputType="date"
+            app:layout_constraintTop_toBottomOf="@id/gender_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
 
-    <EditText
-        android:id="@+id/height_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Height (cm)"
-        android:inputType="numberDecimal"
-        app:layout_constraintTop_toBottomOf="@id/birthdate_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <EditText
+            android:id="@+id/height_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Height (cm)"
+            android:inputType="numberDecimal"
+            app:layout_constraintTop_toBottomOf="@id/birthdate_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
 
-    <EditText
-        android:id="@+id/weight_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Weight (kg)"
-        android:inputType="numberDecimal"
-        app:layout_constraintTop_toBottomOf="@id/height_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <EditText
+            android:id="@+id/weight_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Weight (kg)"
+            android:inputType="numberDecimal"
+            app:layout_constraintTop_toBottomOf="@id/height_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
 
-    <EditText
-        android:id="@+id/health_conditions_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Pre-existing Health Conditions"
-        android:inputType="textMultiLine"
-        app:layout_constraintTop_toBottomOf="@id/weight_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <!-- New Fields Section -->
 
-    <EditText
-        android:id="@+id/medications_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Medications"
-        android:inputType="textMultiLine"
-        app:layout_constraintTop_toBottomOf="@id/health_conditions_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <!-- Prior fall history -->
+        <EditText
+            android:id="@+id/prior_fall_history_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Prior Fall History (count)"
+            android:inputType="number"
+            app:layout_constraintTop_toBottomOf="@id/weight_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
 
-    <EditText
-        android:id="@+id/notes_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Other Notes"
-        android:inputType="textMultiLine"
-        android:lines="4"
-        android:gravity="top"
-        app:layout_constraintTop_toBottomOf="@id/medications_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <!-- Medical Conditions -->
+        <TextView
+            android:id="@+id/medical_conditions_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Medical Conditions:"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/prior_fall_history_input"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"/>
 
-    <Button
-        android:id="@+id/submit_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:minWidth="120dp"
-        android:text="Submit"
-        app:layout_constraintTop_toBottomOf="@id/notes_input"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"/>
+        <CheckBox
+            android:id="@+id/high_cholesterol_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="High Cholesterol"
+            app:layout_constraintTop_toBottomOf="@id/medical_conditions_label"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <CheckBox
+            android:id="@+id/heart_disease_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Heart Disease"
+            app:layout_constraintTop_toBottomOf="@id/high_cholesterol_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/slow_bp_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Low/Slow Blood Pressure"
+            app:layout_constraintTop_toBottomOf="@id/heart_disease_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/obesity_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Obesity"
+            app:layout_constraintTop_toBottomOf="@id/slow_bp_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/stroke_history_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Stroke History"
+            app:layout_constraintTop_toBottomOf="@id/obesity_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/arrhythmia_history_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Arrhythmia History"
+            app:layout_constraintTop_toBottomOf="@id/stroke_history_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/sleep_apnea_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sleep Apnea"
+            app:layout_constraintTop_toBottomOf="@id/arrhythmia_history_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Family History -->
+        <TextView
+            android:id="@+id/family_history_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Family History:"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/sleep_apnea_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/family_heart_disease_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Heart Disease"
+            app:layout_constraintTop_toBottomOf="@id/family_history_label"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/family_diabetes_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Diabetes"
+            app:layout_constraintTop_toBottomOf="@id/family_heart_disease_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/family_stroke_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Stroke"
+            app:layout_constraintTop_toBottomOf="@id/family_diabetes_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Lifestyle Factors -->
+        <TextView
+            android:id="@+id/lifestyle_factors_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Lifestyle Factors:"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/family_stroke_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="16dp"/>
+
+        <EditText
+            android:id="@+id/smoking_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Smoking status/frequency"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/lifestyle_factors_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/alcohol_consumption_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Alcohol consumption level"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/smoking_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/diet_type_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Diet type"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/alcohol_consumption_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/physical_activity_level_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Physical activity level"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/diet_type_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <!-- Current Symptoms -->
+        <TextView
+            android:id="@+id/current_symptoms_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Current Symptoms:"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/physical_activity_level_input"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="16dp"/>
+
+        <EditText
+            android:id="@+id/chest_pain_frequency_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Chest Pain Frequency"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/current_symptoms_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <CheckBox
+            android:id="@+id/shortness_of_breath_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Shortness of Breath"
+            app:layout_constraintTop_toBottomOf="@id/chest_pain_frequency_input"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/dizziness_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Dizziness"
+            app:layout_constraintTop_toBottomOf="@id/shortness_of_breath_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <EditText
+            android:id="@+id/fatigue_level_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Fatigue Level"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/dizziness_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <!-- Lab Test Results -->
+        <TextView
+            android:id="@+id/lab_test_results_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Lab Test Results:"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/fatigue_level_input"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="16dp"/>
+
+        <EditText
+            android:id="@+id/cholesterol_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Cholesterol Level"
+            android:inputType="numberDecimal"
+            app:layout_constraintTop_toBottomOf="@id/lab_test_results_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/triglycerides_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Triglycerides Level"
+            android:inputType="numberDecimal"
+            app:layout_constraintTop_toBottomOf="@id/cholesterol_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/blood_sugar_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Blood Sugar Level"
+            android:inputType="numberDecimal"
+            app:layout_constraintTop_toBottomOf="@id/triglycerides_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <!-- Medication Use -->
+        <TextView
+            android:id="@+id/medication_use_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Medication Use:"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/blood_sugar_input"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/bp_medications_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Blood Pressure Medications"
+            app:layout_constraintTop_toBottomOf="@id/medication_use_label"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/cholesterol_medications_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cholesterol Medications"
+            app:layout_constraintTop_toBottomOf="@id/bp_medications_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/diabetes_medications_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Diabetes Medications"
+            app:layout_constraintTop_toBottomOf="@id/cholesterol_medications_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"/>
+
+        <CheckBox
+            android:id="@+id/blood_thinners_checkbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Blood Thinners"
+            app:layout_constraintTop_toBottomOf="@id/diabetes_medications_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Psychological Factors -->
+        <TextView
+            android:id="@+id/psychological_factors_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Psychological Factors:"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/blood_thinners_checkbox"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="16dp"/>
+
+        <EditText
+            android:id="@+id/stress_level_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Stress Level"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/psychological_factors_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/sleep_quality_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Sleep Quality"
+            android:inputType="text"
+            app:layout_constraintTop_toBottomOf="@id/stress_level_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <!-- Original "Pre-existing Health Conditions", "Medications", "Other Notes" -->
+        <EditText
+            android:id="@+id/health_conditions_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Pre-existing Health Conditions"
+            android:inputType="textMultiLine"
+            app:layout_constraintTop_toBottomOf="@id/sleep_quality_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/medications_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Medications"
+            android:inputType="textMultiLine"
+            app:layout_constraintTop_toBottomOf="@id/health_conditions_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <EditText
+            android:id="@+id/notes_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:hint="Other Notes"
+            android:inputType="textMultiLine"
+            android:lines="4"
+            android:gravity="top"
+            app:layout_constraintTop_toBottomOf="@id/medications_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+        <Button
+            android:id="@+id/submit_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="120dp"
+            android:text="Submit"
+            app:layout_constraintTop_toBottomOf="@id/notes_input"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="16dp"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

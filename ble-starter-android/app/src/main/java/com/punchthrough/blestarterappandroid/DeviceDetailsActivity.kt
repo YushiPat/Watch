@@ -205,7 +205,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
         val requestBody = data.toString().toRequestBody(jsonMediaType)
 
         val request = Request.Builder()
-            .url("https://ultimate-dogfish-distinct.ngrok-free.app/api/sensor-data")
+            .url("https://c69d-129-97-124-16.ngrok-free.app/api/sensor-data")
             .post(requestBody)
             .build()
 
