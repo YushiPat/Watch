@@ -1,3 +1,4 @@
+import datetime
 import os
 import pandas as pd
 import numpy as np
@@ -5,16 +6,13 @@ from flask import Flask, request, jsonify
 import pickle
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from flask_cors import CORS, cross_origin
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from flask_socketio import SocketIO, emit
-# Add at the top with other imports
-import datetime
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
-
 
 # Load environment variables
 load_dotenv()
@@ -29,7 +27,7 @@ print(f"Fetched {len(documents)} documents from MongoDB.")
 # Create a new collection
 predictions_collection = db.predictions  # Basic predictions
 risk_collection = db.risk_assessments    # Risk assessments
-explanation_collection = db.explanations # Explanations
+explanation_collection = db.explanations  # Explanations
 
 # Load the trained model
 MODEL_PATH = 'model_heart_predictor.pkl'
@@ -127,52 +125,52 @@ def preprocess_data(data):
 # Endpoint 1: Basic prediction
 
 
-# Basic prediction handler
-@socketio.on('predict')
-def handle_predict(data):
+@app.route('/api/predict', methods=['POST'])
+@cross_origin()
+def predict():
     try:
+        data = request.get_json()
         if not data or 'data' not in data:
-            emit('prediction_error', {'error': 'No data provided'})
-            return
+            return jsonify({'error': 'No data provided'}), 400
 
         X_input = preprocess_data(data)
         prediction = model.predict(X_input)
-        probability = float(model.predict_proba(X_input)[:, 1][0])
+        probability = model.predict_proba(X_input)[:, 1][0]
 
         # Create a new collection to save the elements
         prediction_doc = {
             'user_id': data['data'][0]['user_id'],
             'prediction': int(prediction[0]),
-            'probability': float(probability[0]),
+            'probability': float(probability),
             'timestamp': datetime.datetime.utcnow(),
             'input_data': data['data']
         }
 
         predictions_collection.insert_one(prediction_doc)
 
-        emit('prediction_result', {
-            'prediction': prediction_doc['prediction'],
-            'probability': prediction_doc['probability'],
+        return jsonify({
+            'prediction': int(prediction[0]),
+            'probability': float(probability),
             'status': 'success'
         })
-
     except Exception as e:
-        emit('prediction_error', {'error': str(e)})
+        return jsonify({'error': str(e)}), 500
 
-# Endpoint 2: Risk assessment with alert (WebSocket version)
+# Endpoint 2: Risk assessment with alert
 
 
-@socketio.on('assess_risk')
-def handle_risk_assessment(data):
+@app.route('/api/predict/risk', methods=['POST'])
+@cross_origin()
+def predict_risk():
     try:
+        data = request.get_json()
         if not data or 'data' not in data:
-            emit('risk_error', {'error': 'No data provided'})
-            return
+            return jsonify({'error': 'No data provided'}), 400
 
         X_input = preprocess_data(data)
-        probability = float(model.predict_proba(X_input)[:, 1][0])
+        probability = model.predict_proba(X_input)[:, 1][0]
         user_id = data['data'][0]['user_id']
-        
+
         if probability > 0.7:  # High-risk threshold
             alert = {
                 'message': 'High risk of past heart attack detected. Consult a healthcare professional.',
@@ -182,95 +180,69 @@ def handle_risk_assessment(data):
                     'cholesterol': data['data'][0]['lab_test_results']['cholesterol']
                 }
             }
-            
+
             # Saving structure for risk assesment
             risk_doc = {
-            'user_id': user_id,
-            'probability': float(probability),
-            'risk_level': 'high' if probability > 0.7 else 'low',
-            'alert': alert if probability > 0.7 else None,
-            'timestamp': datetime.datetime.utcnow(),
-            'input_data': data['data']
-        }
+                'user_id': user_id,
+                'probability': float(probability),
+                'risk_level': 'high' if probability > 0.7 else 'low',
+                'alert': alert if probability > 0.7 else None,
+                'timestamp': datetime.datetime.utcnow(),
+                'input_data': data['data']
+            }
 
             # Insert all using the same collection
             risk_collection.insert_one(risk_doc)
-            
-            emit('risk_assessment', {
-                'risk': 'high',
-                'alert': alert,
-                'probability': float(probability)
-            })
+
+            return jsonify({'risk': 'high', 'alert': alert, 'probability': float(probability)})
         else:
-            emit('risk_assessment', {
-                'risk': 'low',
-                'probability': float(probability)
-            })
-
+            return jsonify({'risk': 'low', 'probability': float(probability)})
     except Exception as e:
-        emit('risk_error', {'error': str(e)})
+        return jsonify({'error': str(e)}), 500
 
-# Endpoint 3: Prediction with explanation and images (WebSocket version)
+# Endpoint 3: Prediction with explanation and images
 
 
-@socketio.on('request_explanation')
-def handle_explanation_request(data):
+@app.route('/api/predict/explain', methods=['POST'])
+@cross_origin()
+def predict_explain():
     try:
+        data = request.get_json()
         if not data or 'data' not in data:
-            emit('explanation_error', {'error': 'No data provided'})
-            return
+            return jsonify({'error': 'No data provided'}), 400
 
         X_input = preprocess_data(data)
         user_id = data['data'][0]['user_id']
         probability = model.predict_proba(X_input)[:, 1][0]
 
-        # Get feature names and importances
+        # Get feature names and importances (without plots)
         feature_names = get_feature_names(model)
         importances = model.named_steps['classifier'].feature_importances_
-        feature_importance = dict(zip(feature_names, importances))
 
-        # Generate and save plots
-        feature_plot_path = save_feature_importance_plot(
-            model, feature_names, user_id)
-        confusion_plot_path = save_confusion_matrix_plot(
-            model, X_test, y_test, user_id)
-
-        response = {
-            'probability': float(probability),
-            'feature_importance': {k: float(v) for k, v in feature_importance.items()},
-            'figures': {
-                'feature_importance_plot': feature_plot_path,
-                'confusion_matrix_plot': confusion_plot_path
-            },
-            'status': 'success'
+        # Convert numpy types to native Python types
+        feature_importance = {
+            k: float(v) for k, v in zip(feature_names, importances)
         }
-        
-        # Convert numpy types to Python native types
-        feature_importance = {k: float(v) for k, v in zip(feature_names, importances)}
-        
-        # Explanation metrics
+
         explanation_doc = {
             'user_id': user_id,
             'probability': float(probability),
             'feature_importance': feature_importance,
-            'figure_paths': {
-                'feature_importance': feature_plot_path,
-                'confusion_matrix': confusion_plot_path
-            },
             'timestamp': datetime.datetime.utcnow(),
             'input_data': data['data']
         }
-        # Save the elements in the explanation section db
+
         explanation_collection.insert_one(explanation_doc)
-        # And emit the result to the doc that we are using
-        emit('explanation_response', response)
 
+        response = {
+            'probability': float(probability),
+            'feature_importance': feature_importance,
+            'status': 'success'
+        }
+        return jsonify(response)
     except Exception as e:
-        emit('explanation_error', {'error': str(e)})
-
-
-# Fall endpoints
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='127.0.0.1', port=5000)
