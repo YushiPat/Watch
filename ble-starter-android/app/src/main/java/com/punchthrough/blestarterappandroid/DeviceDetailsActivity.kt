@@ -1,10 +1,15 @@
 package com.punchthrough.blestarterappandroid
 
-import android.bluetooth.*
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothProfile
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.StyleSpan
 import android.util.Log
@@ -24,6 +29,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import java.time.Instant
 
 class DeviceDetailsActivity : AppCompatActivity() {
 
@@ -49,23 +55,12 @@ class DeviceDetailsActivity : AppCompatActivity() {
     // Store the last valid JSON so it remains displayed until new valid data arrives
     private var lastReceivedData: JSONObject? = null
 
-    // WebSocket-related variables for receiving (mock) prediction data
-    private var webSocket: WebSocket? = null
-    private val predictionHandler = Handler(Looper.getMainLooper())
-    private val predictionRunnable = object : Runnable {
-        override fun run() {
-            if (isBleConnected) {
-                // Generate a mock prediction message
-                val mockPrediction = "Prediction: ${getRandomPrediction()}"
-                showPredictionPopup(mockPrediction)
-                // Schedule the next mock prediction in 10 seconds
-                predictionHandler.postDelayed(this, 10000)
-            }
-        }
-    }
-
-    // Flag to track BLE connection status
-    private var isBleConnected = false
+    // --------------------------------------------------
+    // Fields for polling the risk assessment
+    // --------------------------------------------------
+    private val pollingHandler = Handler(Looper.getMainLooper())
+    private var isPolling = false
+    private var lastShownTimestamp: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,17 +84,14 @@ class DeviceDetailsActivity : AppCompatActivity() {
         updateConnectionStatus(false)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        disconnectWebSocket()
-        bluetoothGatt?.close()
-    }
-
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
     }
 
+    // --------------------------------------------------
+    // BLE connection and disconnection
+    // --------------------------------------------------
     private fun connectToDevice() {
         bluetoothGatt = device.connectGatt(this, false, gattCallback)
     }
@@ -113,12 +105,15 @@ class DeviceDetailsActivity : AppCompatActivity() {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 runOnUiThread {
                     updateConnectionStatus(true)
+                    // Start polling for risk assessments after connected
+                    startPollingForPrediction()
                 }
                 gatt.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 runOnUiThread {
                     updateConnectionStatus(false)
-                    // Keep showing last data even if disconnected
+                    // Stop polling when disconnected
+                    stopPollingForPrediction()
                 }
             }
         }
@@ -233,20 +228,17 @@ class DeviceDetailsActivity : AppCompatActivity() {
                 } else if (start != -1 && end == -1) {
                     dataBuffer.delete(0, start)
                 } else {
-
+                    //DONT REMOVE THIS ELSE BLOCK
                 }
             }
         }
     }
 
-    /**
-     * Update the UI with new data.
-     *
-     * If the provided JSON has an empty "Timestamp", then it is considered invalid,
-     * and we fall back to the last valid data.
-     */
+    // --------------------------------------------------
+    // Update UI with new data
+    // --------------------------------------------------
     private fun updateUI(jsonObject: JSONObject) {
-        // Use lastReceivedData if the new jsonObject appears empty (based on "Timestamp")
+        // Use lastReceivedData if the new jsonObject appears empty
         val timestamp = jsonObject.optString("Timestamp")
         val validData = if (timestamp.isEmpty() && lastReceivedData != null) {
             lastReceivedData
@@ -264,16 +256,16 @@ class DeviceDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Sends the JSON data to the backend using OkHttp.
-     */
+    // --------------------------------------------------
+    // Send sensor data to backend
+    // --------------------------------------------------
     private fun sendDataToBackend(data: JSONObject) {
         val client = OkHttpClient()
         val jsonMediaType = "application/json; charset=utf-8".toMediaType()
         val requestBody = data.toString().toRequestBody(jsonMediaType)
 
         val request = Request.Builder()
-            .url("https://c69d-129-97-124-16.ngrok-free.app/api/sensor-data")
+            .url("https://4e4c-2620-101-f000-7c0-00-90b2.ngrok-free.app/api/sensor-data")
             .post(requestBody)
             .build()
 
@@ -295,9 +287,9 @@ class DeviceDetailsActivity : AppCompatActivity() {
         })
     }
 
-    /**
-     * Setup chart appearance and axes.
-     */
+    // --------------------------------------------------
+    // Setup chart appearance and axes
+    // --------------------------------------------------
     private fun setupLineChart() {
         lineChart.description.isEnabled = false
         lineChart.setTouchEnabled(true)
@@ -360,9 +352,6 @@ class DeviceDetailsActivity : AppCompatActivity() {
         lineChart.moveViewToX(data.entryCount.toFloat())
     }
 
-    /**
-     * Create a dataset for the chart (tracking HeartRate, for example).
-     */
     private fun createSet(): LineDataSet {
         val set = LineDataSet(null, "Heart Rate")
         set.axisDependency = YAxis.AxisDependency.LEFT
@@ -379,31 +368,26 @@ class DeviceDetailsActivity : AppCompatActivity() {
         return set
     }
 
-    /**
-     * Updates the connection status text and color.
-     * Also manages the WebSocket connection for predictions.
-     */
+    // --------------------------------------------------
+    // Update connection status text and color
+    // --------------------------------------------------
     private fun updateConnectionStatus(isConnected: Boolean) {
-        isBleConnected = isConnected
         if (isConnected) {
             connectionStatusTextView.text = "Bangle.js 2 SmartWatch Connected"
             connectionStatusTextView.setTextColor(
                 ContextCompat.getColor(this, android.R.color.holo_green_dark)
             )
-            // Open the WebSocket (and start simulation) only when BLE is connected
-            connectWebSocket()
         } else {
             connectionStatusTextView.text = "Bangle.js 2 SmartWatch Disconnected"
             connectionStatusTextView.setTextColor(
                 ContextCompat.getColor(this, android.R.color.holo_red_dark)
             )
-            disconnectWebSocket()
         }
     }
 
-    /**
-     * Format the most recent data in a nice multi-line layout with bold labels.
-     */
+    // --------------------------------------------------
+    // Format recent data in a multi-line layout with bold labels
+    // --------------------------------------------------
     private fun formatRecentData(jsonObject: JSONObject): SpannableStringBuilder {
         val sb = SpannableStringBuilder()
 
@@ -414,7 +398,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
                 StyleSpan(android.graphics.Typeface.BOLD),
                 start,
                 sb.length,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE
             )
             sb.append(value)
             sb.append("\n")
@@ -436,69 +420,113 @@ class DeviceDetailsActivity : AppCompatActivity() {
         return sb
     }
 
+    // --------------------------------------------------
+    // Polling for the latest risk assessment
+    // --------------------------------------------------
+    private fun startPollingForPrediction() {
+        if (!isPolling) {
+            isPolling = true
+            pollingHandler.post(pollingRunnable)
+        }
+    }
+
+    private fun stopPollingForPrediction() {
+        isPolling = false
+        pollingHandler.removeCallbacks(pollingRunnable)
+    }
+
+    private val pollingRunnable = object : Runnable {
+        override fun run() {
+            if (isPolling) {
+                fetchLatestRiskAssessment()
+                // Schedule the next run in 1 second
+                pollingHandler.postDelayed(this, 1000)
+            }
+        }
+    }
+
     /**
-     * Connects to the WebSocket to receive prediction data (mocked for prototype).
+     * Fetch the latest risk assessment using a standard OkHttpClient since the endpoint uses HTTP.
      */
-    private fun connectWebSocket() {
-        val request = Request.Builder().url("wss://example.com/mock-predictions").build()
-        val client = OkHttpClient.Builder().build()
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.d("DeviceDetailsActivity", "WebSocket opened")
-                // Start simulating prediction messages
-                runOnUiThread {
-                    predictionHandler.post(predictionRunnable)
-                }
+    private fun fetchLatestRiskAssessment() {
+        // Using default OkHttpClient since the endpoint is plain HTTP (no TLS)
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url("http://4e4c-2620-101-f000-7c0-00-90b2.ngrok-free.app/api/risk-assessment/latest")
+            .get()
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("DeviceDetailsActivity", "Failed to fetch latest risk assessment", e)
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.d("DeviceDetailsActivity", "Received prediction message: $text")
-                if (isBleConnected) {
-                    showPredictionPopup(text)
-                }
-            }
+            override fun onResponse(call: Call, response: Response) {
+                response.use { resp ->
+                    if (!resp.isSuccessful) {
+                        Log.e("DeviceDetailsActivity", "Unsuccessful response: ${resp.message}")
+                        return
+                    }
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e("DeviceDetailsActivity", "WebSocket failure: ${t.message}")
-                // In case of failure, still simulate predictions for this prototype
-                runOnUiThread {
-                    predictionHandler.post(predictionRunnable)
+                    val responseBody = resp.body?.string().orEmpty()
+                    try {
+                        // The server returns a JSON object
+                        val assessment = JSONObject(responseBody)
+                        Log.d("RiskAssessment", assessment.toString())
+
+                        // Extract the timestamp from the nested "$date" field
+                        val timestampObj = assessment.optJSONObject("timestamp")
+                        val timestampString = timestampObj?.optString("\$date") ?: ""
+                        if (timestampString.isNotEmpty()) {
+                            val recordTimeMs = parseIsoTimeToMillis(timestampString)
+                            val nowMs = System.currentTimeMillis()
+
+                            // If within last 1 second, show popup (and not shown before)
+
+                            // nowMs - recordTimeMs in 0..1000
+                            if (nowMs - recordTimeMs in 0..1000) {
+                                if (lastShownTimestamp != timestampString) {
+                                    lastShownTimestamp = timestampString
+                                    // Extract the alert message
+                                    val alertObj = assessment.optJSONObject("alert")
+                                    val alertMessage = alertObj?.optString("message")
+                                        ?: "No alert message"
+
+                                    runOnUiThread {
+                                        showPredictionDialog(alertMessage)
+                                    }
+                                } else {
+                                    //DONT REMOVE THIS ELSE BLOCK
+                                }
+                            } else {
+                                //DONT REMOVE THIS ELSE BLOCK
+                            }
+                        } else {
+                            //DONT REMOVE THIS ELSE BLOCK
+                        }
+                    } catch (ex: Exception) {
+                        Log.e("DeviceDetailsActivity", "Error parsing risk assessment JSON", ex)
+                    }
                 }
             }
         })
     }
 
-    /**
-     * Disconnects from the WebSocket and stops prediction simulation.
-     */
-    private fun disconnectWebSocket() {
-        webSocket?.close(1000, "BLE disconnected")
-        webSocket = null
-        predictionHandler.removeCallbacks(predictionRunnable)
-    }
-
-    /**
-     * Generates a random mock prediction.
-     */
-    private fun getRandomPrediction(): String {
-        // Simulate a prediction message (for example, detecting a heart rate anomaly)
-        val randomHeartRate = (60..100).random()
-        return "Heart rate anomaly detected at $randomHeartRate BPM."
-    }
-
-    /**
-     * Displays a popup with the prediction.
-     */
-    private fun showPredictionPopup(prediction: String) {
-        runOnUiThread {
-            AlertDialog.Builder(this)
-                .setTitle("New Prediction")
-                .setMessage(prediction)
-                .setPositiveButton("Close") { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .create()
-                .show()
+    // Helper to parse an ISO-8601 timestamp (e.g. "2025-03-03T22:57:55.242Z") to milliseconds
+    private fun parseIsoTimeToMillis(isoTime: String): Long {
+        return try {
+            Instant.parse(isoTime).toEpochMilli()
+        } catch (e: Exception) {
+            0L
         }
+    }
+
+    // Show a popup dialog with the prediction alert
+    private fun showPredictionDialog(message: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Risk Assessment Alert")
+            .setMessage(message)
+            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+            .show()
     }
 }
