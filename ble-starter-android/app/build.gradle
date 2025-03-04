@@ -10,6 +10,9 @@ android {
         versionCode 2
         versionName "2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField "String", "TWILIO_ACCOUNT_SID", "\"${TWILIO_ACCOUNT_SID}\""
+        buildConfigField "String", "TWILIO_AUTH_TOKEN", "\"${TWILIO_AUTH_TOKEN}\""
+        buildConfigField "String", "TWILIO_PHONE_NUMBER", "\"${TWILIO_PHONE_NUMBER}\""
     }
     buildFeatures {
         viewBinding true

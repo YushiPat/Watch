@@ -30,6 +30,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.time.Instant
+import com.punchthrough.blestarterappandroid.TwilioCallHelper
 
 class DeviceDetailsActivity : AppCompatActivity() {
 
@@ -523,10 +524,13 @@ class DeviceDetailsActivity : AppCompatActivity() {
 
     // Show a popup dialog with the prediction alert
     private fun showPredictionDialog(message: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Risk Assessment Alert")
-            .setMessage(message)
-            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
-            .show()
+            // Automatically trigger the emergency call
+            TwilioCallHelper.makeCall("+19056170150", message)
+
+            AlertDialog.Builder(this)
+                .setTitle("Risk Assessment Alert")
+                .setMessage(message)
+                .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+                .show()
     }
 }
