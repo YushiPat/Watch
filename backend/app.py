@@ -21,8 +21,6 @@ load_dotenv()
 mongo_url = os.getenv('MONGO_DB_CONNECTION')
 client = MongoClient(mongo_url)
 db = client.get_database("health_metrics")
-documents = list(db.test.find())
-print(f"Fetched {len(documents)} documents from MongoDB.")
 
 # Create a new collection
 predictions_collection = db.predictions  # Basic predictions
