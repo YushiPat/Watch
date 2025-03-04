@@ -453,7 +453,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
         // Using default OkHttpClient since the endpoint is plain HTTP (no TLS)
         val client = OkHttpClient()
         val request = Request.Builder()
-            .url("http://4e4c-2620-101-f000-7c0-00-90b2.ngrok-free.app/api/risk-assessment/latest")
+            .url("https://4e4c-2620-101-f000-7c0-00-90b2.ngrok-free.app/api/risk-assessment/latest")
             .get()
             .build()
 
@@ -472,11 +472,11 @@ class DeviceDetailsActivity : AppCompatActivity() {
                     val responseBody = resp.body?.string().orEmpty()
                     try {
                         // The server returns a JSON object
-                        val assessment = JSONObject(responseBody)
-                        Log.d("RiskAssessment", assessment.toString())
+                        val prediction = JSONObject(responseBody)
+                        Log.d("RiskAssessment", prediction.toString())
 
                         // Extract the timestamp from the nested "$date" field
-                        val timestampObj = assessment.optJSONObject("timestamp")
+                        val timestampObj = prediction.optJSONObject("timestamp")
                         val timestampString = timestampObj?.optString("\$date") ?: ""
                         if (timestampString.isNotEmpty()) {
                             val recordTimeMs = parseIsoTimeToMillis(timestampString)
@@ -485,13 +485,13 @@ class DeviceDetailsActivity : AppCompatActivity() {
                             // If within last 1 second, show popup (and not shown before)
 
                             // nowMs - recordTimeMs in 0..1000
-                            if (nowMs - recordTimeMs in 0..1000) {
+                            val alertProbability = prediction.optDouble("probability", 0.0)
+                            if (nowMs - recordTimeMs > 0 && alertProbability > 0.5) {
                                 if (lastShownTimestamp != timestampString) {
                                     lastShownTimestamp = timestampString
                                     // Extract the alert message
-                                    val alertObj = assessment.optJSONObject("alert")
-                                    val alertMessage = alertObj?.optString("message")
-                                        ?: "No alert message"
+                                    val alertMessage = "There is a ${alertProbability * 100}% chance of a heart attack"
+
 
                                     runOnUiThread {
                                         showPredictionDialog(alertMessage)
@@ -525,7 +525,7 @@ class DeviceDetailsActivity : AppCompatActivity() {
     // Show a popup dialog with the prediction alert
     private fun showPredictionDialog(message: String) {
             // Automatically trigger the emergency call
-            TwilioCallHelper.makeCall("+19056170150", message)
+            TwilioCallHelper.makeCall("+", message)
 
             AlertDialog.Builder(this)
                 .setTitle("Risk Assessment Alert")

@@ -116,7 +116,7 @@ def get_heart_rate_data(patient_id):
 @app.route('/api/risk-assessment/latest', methods=['GET'])
 def get_latest_prediction():
     # Sort by descending timestamp and limit to 1
-    data = list(risk_assessment_records.find().sort("timestamp", -1).limit(1))
+    data = list(prediction_records.find().sort("timestamp", -1).limit(1))
     return dumps(data[0]) if data else jsonify({}), 200
 
 
